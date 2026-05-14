@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SyntheticPen — Virtual Pen Plotter for Windows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #0A0A0A;
+    --bg-1: #121212;
+    --bg-2: #1A1A1A;
+    --ink: #F5F5F5;
+    --ink-dim: #8a8d92;
+    --silver: #A6A6A6;
+    --blue: #4DA3FF;
+    --cyan: #6BE6FF;
+    --grid: rgba(255,255,255,0.04);
+    --grid-strong: rgba(77, 163, 255, 0.08);
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-0); color: var(--ink); }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: rgba(77, 163, 255, 0.35); color: #fff; }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .heading { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--silver);
+  }
+
+  /* Site grid background */
+  .site-grid {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 30%, transparent 100%);
+  }
+  .site-grid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--grid-strong) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-strong) 1px, transparent 1px);
+    background-size: 320px 320px;
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 30%, #000 0%, transparent 70%);
+  }
+
+  /* Header */
+  header.nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(12px);
+    background: rgba(10, 10, 10, 0.6);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+  }
+  .logo-mark {
+    width: 22px;
+    height: 22px;
+    color: var(--blue);
+    filter: drop-shadow(0 0 6px rgba(77, 163, 255, 0.4));
+  }
+  .nav-links {
+    display: flex;
+    gap: 36px;
+    align-items: center;
+  }
+  .nav-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--silver);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: var(--ink); }
+  .nav-link.cta {
+    color: var(--blue);
+    border: 1px solid rgba(77, 163, 255, 0.3);
+    padding: 7px 14px;
+    border-radius: 2px;
+  }
+  .nav-link.cta:hover {
+    background: rgba(77, 163, 255, 0.08);
+    border-color: var(--blue);
+  }
+
+  /* Section base */
+  section {
+    position: relative;
+    z-index: 1;
+  }
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #0a1a2e;
+    background: linear-gradient(135deg, #4DA3FF 0%, #6BE6FF 100%);
+    border: none;
+    padding: 14px 28px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(.2,.7,.2,1), box-shadow 0.25s;
+    box-shadow:
+      0 0 0 1px rgba(107, 230, 255, 0.4),
+      0 0 24px rgba(77, 163, 255, 0.35),
+      0 0 60px rgba(77, 163, 255, 0.15);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow:
+      0 0 0 1px rgba(107, 230, 255, 0.7),
+      0 0 32px rgba(77, 163, 255, 0.55),
+      0 0 90px rgba(77, 163, 255, 0.3);
+  }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    padding: 13px 26px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-ghost:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: rgba(77, 163, 255, 0.04);
+  }
+
+  /* Card surfaces */
+  .panel {
+    background: linear-gradient(180deg, rgba(26, 26, 26, 0.7) 0%, rgba(18, 18, 18, 0.7) 100%);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    backdrop-filter: blur(8px);
+  }
+
+  /* Headings */
+  h1.display {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(48px, 7.5vw, 104px);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+  h2.section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: clamp(32px, 4vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .subhead {
+    color: var(--silver);
+    font-size: 18px;
+    font-weight: 400;
+    margin: 0;
+  }
+
+  /* Animated gradient stop for the signature ink */
+  @keyframes inkPulse {
+    0%, 100% { stop-color: #4DA3FF; }
+    50% { stop-color: #6BE6FF; }
+  }
+  .ink-stop-a { animation: inkPulse 4s ease-in-out infinite; }
+  .ink-stop-b { animation: inkPulse 4s ease-in-out infinite reverse; }
+
+  /* Fade-in on scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s cubic-bezier(.2,.7,.2,1), transform 0.8s cubic-bezier(.2,.7,.2,1);
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Tag pill */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--blue);
+    background: rgba(77, 163, 255, 0.08);
+    border: 1px solid rgba(77, 163, 255, 0.2);
+    padding: 6px 12px;
+    border-radius: 2px;
+  }
+  .tag .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--blue);
+    box-shadow: 0 0 8px var(--blue);
+    animation: dotPulse 2s ease-in-out infinite;
+  }
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  #root { position: relative; z-index: 1; }
+
+  /* Hide scrollbars subtly */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg-0); }
+  ::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 0; }
+  ::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+</style>
+</head>
+<body>
+<div class="site-grid"></div>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="sections.jsx"></script>
+<script type="text/babel" src="sections2.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
