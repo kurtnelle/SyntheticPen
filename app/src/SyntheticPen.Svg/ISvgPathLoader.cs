@@ -1,8 +1,6 @@
-using SyntheticPen.Core.Models;
-
 namespace SyntheticPen.Svg;
 
 public interface ISvgPathLoader
 {
-    Task<IReadOnlyList<Stroke>> LoadAsync(Stream svgStream, CancellationToken ct = default);
+    Task<SvgDocument> LoadAsync(Stream svgStream, FlattenOptions opts, CancellationToken ct = default);
 }

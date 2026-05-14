@@ -1,9 +1,7 @@
-using SyntheticPen.Core.Models;
-
 namespace SyntheticPen.Svg;
 
 public sealed class SkiaSvgPathLoader : ISvgPathLoader
 {
-    public Task<IReadOnlyList<Stroke>> LoadAsync(Stream svgStream, CancellationToken ct = default)
-        => throw new NotImplementedException("Phase 1");
+    public Task<SvgDocument> LoadAsync(Stream svgStream, FlattenOptions opts, CancellationToken ct = default)
+        => throw new NotImplementedException("Implemented in Task 5");
 }
