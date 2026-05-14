@@ -1,0 +1,25 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SyntheticPen.App.ViewModels"
+        x:Class="SyntheticPen.App.Views.RegionPreview"
+        x:DataType="vm:MainWindowViewModel"
+        SystemDecorations="None"
+        WindowStartupLocation="Manual"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        CanResize="False"
+        Focusable="False">
+    <Grid>
+        <Border Background="#114DA3FF" BorderBrush="#4DA3FF" BorderThickness="1"/>
+        <Viewbox Stretch="Uniform" Margin="6">
+            <Path Stroke="#6BE6FF" StrokeThickness="1.5"
+                  Data="{Binding PreviewGeometry}"/>
+        </Viewbox>
+        <Rectangle Width="8" Height="8" Fill="#4DA3FF" HorizontalAlignment="Left"  VerticalAlignment="Top"/>
+        <Rectangle Width="8" Height="8" Fill="#4DA3FF" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+        <Rectangle Width="8" Height="8" Fill="#4DA3FF" HorizontalAlignment="Left"  VerticalAlignment="Bottom"/>
+        <Rectangle Width="8" Height="8" Fill="#4DA3FF" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+    </Grid>
+</Window>

@@ -29,6 +29,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private SvgDocument? _doc;
     private CountdownOverlay? _countdown;
     private PlottingIndicator? _indicator;
+    private RegionPreview? _regionPreview;
 
     public MainWindowViewModel(
         IPlaybackController playback,
@@ -50,6 +51,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _playback.StateChanged += OnStateChanged;
         _playback.CountdownTick += OnCountdownTick;
         _hotkeys.EmergencyStopRequested += () => _playback.RequestStop();
+        _regions.Changed += _ =>
+        {
+            OnPropertyChanged(nameof(HasRegion));
+            OnPropertyChanged(nameof(CtaVisible));
+        };
         StateText = _playback.State.ToString();
 
         _ = LoadDemoSvgAsync();
@@ -87,6 +93,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _targetRegionLabel = "(not set)";
     [ObservableProperty] private Geometry? _previewGeometry;
 
+    public bool HasRegion => _regions.Current is not null;
+    public bool CtaVisible => !HasRegion;
+
     public InjectionMode[] InjectionModes { get; } = Enum.GetValues<InjectionMode>();
 
     [RelayCommand]
@@ -116,16 +125,35 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         var owner = MainWindow();
         if (owner is null) return;
-        owner.WindowState = WindowState.Minimized;
+
+        // Close any existing region preview before recalibrating so it doesn't sit over the overlay.
+        _regionPreview?.Close();
+        _regionPreview = null;
+
         var overlay = new CalibrationOverlay();
         await overlay.ShowDialog(owner);
-        owner.WindowState = WindowState.Normal;
-        owner.Activate();
 
         if (overlay.SelectedRect is { } r)
         {
             _regions.Set(r);
             TargetRegionLabel = $"{(int)r.W}×{(int)r.H} at ({(int)r.X},{(int)r.Y})";
+            ShowRegionPreview(r);
+        }
+    }
+
+    private void ShowRegionPreview(ModelRect r)
+    {
+        if (_regionPreview is null)
+        {
+            _regionPreview = new RegionPreview();
+            _regionPreview.Closed += (_, _) => _regionPreview = null;
+            _regionPreview.PositionOver(r);
+            _regionPreview.Show();
+        }
+        else
+        {
+            _regionPreview.PositionOver(r);
+            _regionPreview.Activate();
         }
     }
 
@@ -175,12 +203,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         StateText = s.ToString();
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            var owner = MainWindow();
             if (s == PlaybackState.CountingDown)
             {
-                // Minimize the main window so it doesn't sit over the calibrated target region
-                // and absorb SendInput events that should reach the target app.
-                if (owner is not null) owner.WindowState = WindowState.Minimized;
                 _countdown ??= new CountdownOverlay();
                 if (_regions.Current is { } r) _countdown.PositionOver(r);
                 _countdown.Show();
@@ -189,8 +213,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             {
                 _countdown?.Close(); _countdown = null;
                 // Focus the window under the center of the target rect so the first
-                // SendInput / pen event lands on the intended app rather than whatever
-                // was foreground (e.g. our minimized main window).
+                // SendInput / pen event lands on the intended app rather than the banner.
                 if (_regions.Current is { } r)
                 {
                     Win32.WindowInterop.FocusWindowAt(
@@ -204,7 +227,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
             {
                 _countdown?.Close(); _countdown = null;
                 _indicator?.Close(); _indicator = null;
-                if (owner is not null) { owner.WindowState = WindowState.Normal; owner.Activate(); }
             }
         });
     }

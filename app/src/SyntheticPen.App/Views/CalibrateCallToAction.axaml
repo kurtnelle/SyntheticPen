@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SyntheticPen.App.ViewModels"
+        x:Class="SyntheticPen.App.Views.CalibrateCallToAction"
+        x:DataType="vm:MainWindowViewModel"
+        SystemDecorations="None"
+        WindowStartupLocation="CenterScreen"
+        Width="480" Height="180"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        CanResize="False">
+    <Border Background="#EE0A0A0A" BorderBrush="#4DA3FF" BorderThickness="1" CornerRadius="6" Padding="32,24">
+        <StackPanel Spacing="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="WHERE SHOULD I DRAW?"
+                       FontFamily="Consolas" FontSize="11"
+                       Foreground="#A6A6A6" HorizontalAlignment="Center"/>
+            <Button Content="Click to select target region"
+                    Command="{Binding CalibrateCommand}"
+                    Background="#4DA3FF" Foreground="#0A0A0A"
+                    Padding="20,12" FontSize="16" FontWeight="SemiBold"
+                    HorizontalAlignment="Center"/>
+            <TextBlock Text="Drag a rectangle over the area you want SyntheticPen to draw into."
+                       FontSize="12" Foreground="#A6A6A6" HorizontalAlignment="Center" TextAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</Window>

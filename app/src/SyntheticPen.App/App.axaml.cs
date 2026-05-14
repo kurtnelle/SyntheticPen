@@ -14,10 +14,21 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            var vm = Program.Services.GetRequiredService<MainWindowViewModel>();
+            var banner = new Views.TopBanner();
+            var cta = new Views.CalibrateCallToAction();
+
+            void SyncCta() => cta.IsVisible = vm.CtaVisible;
+            vm.PropertyChanged += (_, e) =>
             {
-                DataContext = Program.Services.GetRequiredService<MainWindowViewModel>()
+                if (e.PropertyName == nameof(vm.CtaVisible) || e.PropertyName == nameof(vm.HasRegion))
+                    Avalonia.Threading.Dispatcher.UIThread.Post(SyncCta);
             };
+
+            desktop.MainWindow = banner;
+            banner.Show();
+            cta.Show();
+            SyncCta();
         }
         base.OnFrameworkInitializationCompleted();
     }
