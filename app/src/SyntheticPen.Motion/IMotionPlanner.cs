@@ -5,7 +5,7 @@ namespace SyntheticPen.Motion;
 public interface IMotionPlanner
 {
     IAsyncEnumerable<TimedPoint> Plan(
-        IReadOnlyList<Stroke> strokes,
+        IReadOnlyList<Stroke> screenStrokes,
         PlanOptions options,
         CancellationToken ct = default);
 }
