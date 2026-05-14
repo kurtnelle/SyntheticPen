@@ -138,7 +138,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
         (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
 
     [RelayCommand]
-    private void About() { /* implemented in Task 16 */ }
+    private async Task AboutAsync()
+    {
+        var owner = MainWindow();
+        if (owner is null) return;
+        await new Views.AboutDialog().ShowDialog(owner);
+    }
 
     private void OnStateChanged(PlaybackState s)
     {
