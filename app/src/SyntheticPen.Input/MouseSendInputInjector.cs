@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using SyntheticPen.Core.Models;
+using SyntheticPen.Core.Playback;
 using SyntheticPen.Input.Win32;
 using static SyntheticPen.Input.Win32.SendInputNative;
 

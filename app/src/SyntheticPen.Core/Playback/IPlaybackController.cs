@@ -5,7 +5,8 @@ namespace SyntheticPen.Core.Playback;
 public interface IPlaybackController
 {
     PlaybackState State { get; }
-    event Action<PlaybackState>? StateChanged;
-    Task PlayAsync(IReadOnlyList<Stroke> strokes, CancellationToken ct = default);
-    Task StopAsync(CancellationToken ct = default);
+    event Action<PlaybackState> StateChanged;
+    event Action<TimeSpan> CountdownTick;
+    Task PlayAsync(IReadOnlyList<Stroke> screenStrokes, PlaybackOptions opts, CancellationToken ct = default);
+    void RequestStop();
 }

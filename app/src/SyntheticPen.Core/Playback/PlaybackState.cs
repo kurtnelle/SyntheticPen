@@ -5,6 +5,5 @@ public enum PlaybackState
     Idle,
     CountingDown,
     Playing,
-    Paused,
-    Stopping
+    Cancelling
 }

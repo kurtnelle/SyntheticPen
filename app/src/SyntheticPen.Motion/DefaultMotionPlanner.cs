@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using SyntheticPen.Core.Models;
+using SyntheticPen.Core.Playback;
 
 namespace SyntheticPen.Motion;
 

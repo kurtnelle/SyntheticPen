@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SyntheticPen.Core\SyntheticPen.Core.csproj" />
+    <ProjectReference Include="..\..\src\SyntheticPen.Motion\SyntheticPen.Motion.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 using SyntheticPen.Core.Models;
 
-namespace SyntheticPen.Motion;
+namespace SyntheticPen.Core.Playback;
 
 public interface IMotionPlanner
 {

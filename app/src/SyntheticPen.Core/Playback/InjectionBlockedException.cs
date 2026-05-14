@@ -1,4 +1,4 @@
-namespace SyntheticPen.Input;
+namespace SyntheticPen.Core.Playback;
 
 public sealed class InjectionBlockedException : Exception
 {

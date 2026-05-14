@@ -1,4 +1,4 @@
-namespace SyntheticPen.Motion;
+namespace SyntheticPen.Core.Playback;
 
 public sealed record PlanOptions(
     double SpeedMultiplier = 1.0,

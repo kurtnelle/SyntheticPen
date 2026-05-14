@@ -1,5 +1,6 @@
 using FluentAssertions;
 using SyntheticPen.Core.Models;
+using SyntheticPen.Core.Playback;
 using SyntheticPen.Motion;
 using Xunit;
 
