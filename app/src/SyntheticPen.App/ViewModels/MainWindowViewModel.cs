@@ -51,6 +51,31 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _playback.CountdownTick += OnCountdownTick;
         _hotkeys.EmergencyStopRequested += () => _playback.RequestStop();
         StateText = _playback.State.ToString();
+
+        _ = LoadDemoSvgAsync();
+    }
+
+    private async Task LoadDemoSvgAsync()
+    {
+        try
+        {
+            var asm = typeof(MainWindowViewModel).Assembly;
+            var resourceName = asm.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("demo_circle_square.svg", StringComparison.Ordinal));
+            if (resourceName is null) return;
+            await using var s = asm.GetManifestResourceStream(resourceName);
+            if (s is null) return;
+            _doc = await _loader.LoadAsync(s, new FlattenOptions(0.25));
+            SvgFileLabel = "demo_circle_square.svg (built-in)";
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(_doc.Strokes);
+            });
+        }
+        catch
+        {
+            // Demo load is best-effort; if it fails the user can still File → Open.
+        }
     }
 
     [ObservableProperty] private string _stateText = string.Empty;

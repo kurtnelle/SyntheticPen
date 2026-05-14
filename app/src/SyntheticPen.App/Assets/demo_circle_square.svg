@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Square: 160x160 outer outline, traced first -->
+  <path d="M 20 20 L 180 20 L 180 180 L 20 180 Z"/>
+  <!-- Circle: r=80, centered at (100,100). 4 cubic-bezier arc segments, k=0.5522847498 -->
+  <path d="M 100 20
+           C 144.183 20 180 55.817 180 100
+           C 180 144.183 144.183 180 100 180
+           C 55.817 180 20 144.183 20 100
+           C 20 55.817 55.817 20 100 20 Z"/>
+</svg>
