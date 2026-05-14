@@ -182,6 +182,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 // and absorb SendInput events that should reach the target app.
                 if (owner is not null) owner.WindowState = WindowState.Minimized;
                 _countdown ??= new CountdownOverlay();
+                if (_regions.Current is { } r) _countdown.PositionOver(r);
                 _countdown.Show();
             }
             else if (s == PlaybackState.Playing)

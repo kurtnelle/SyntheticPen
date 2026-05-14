@@ -3,18 +3,21 @@
         x:Class="SyntheticPen.App.Views.CountdownOverlay"
         Title="SyntheticPen — Countdown"
         SystemDecorations="None"
-        WindowStartupLocation="CenterScreen"
-        Width="320" Height="220"
+        WindowStartupLocation="Manual"
         Topmost="True"
         ShowInTaskbar="False"
-        Background="#0A0A0A"
-        CanResize="False">
-    <Border Background="#0A0A0A" BorderBrush="#4DA3FF" BorderThickness="1">
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        CanResize="False"
+        Focusable="False">
+    <Border Background="#4D4DA3FF"
+            BorderBrush="#4DA3FF"
+            BorderThickness="2">
         <TextBlock Name="Number"
                    Text="3"
                    FontSize="160"
                    FontWeight="Bold"
-                   Foreground="#4DA3FF"
+                   Foreground="#F5F5F5"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"/>
     </Border>
