@@ -1,0 +1,49 @@
+name: app-ci
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/app-ci.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - '.github/workflows/app-ci.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          global-json-file: app/global.json
+      - name: Print SDK
+        run: dotnet --version
+        working-directory: app
+      - name: Restore libraries, app, and tests
+        run: |
+          dotnet restore app/src/SyntheticPen.Core/SyntheticPen.Core.csproj
+          dotnet restore app/src/SyntheticPen.Svg/SyntheticPen.Svg.csproj
+          dotnet restore app/src/SyntheticPen.Motion/SyntheticPen.Motion.csproj
+          dotnet restore app/src/SyntheticPen.Input/SyntheticPen.Input.csproj
+          dotnet restore app/src/SyntheticPen.Rendering/SyntheticPen.Rendering.csproj
+          dotnet restore app/src/SyntheticPen.App/SyntheticPen.App.csproj
+          dotnet restore app/tests/SyntheticPen.Core.Tests/SyntheticPen.Core.Tests.csproj
+          dotnet restore app/tests/SyntheticPen.Svg.Tests/SyntheticPen.Svg.Tests.csproj
+          dotnet restore app/tests/SyntheticPen.Motion.Tests/SyntheticPen.Motion.Tests.csproj
+        shell: pwsh
+      - name: Build (libraries + app + tests, skipping wapproj)
+        run: |
+          dotnet build app/src/SyntheticPen.App/SyntheticPen.App.csproj -c Release --no-restore
+          dotnet build app/tests/SyntheticPen.Core.Tests/SyntheticPen.Core.Tests.csproj -c Release --no-restore
+          dotnet build app/tests/SyntheticPen.Svg.Tests/SyntheticPen.Svg.Tests.csproj -c Release --no-restore
+          dotnet build app/tests/SyntheticPen.Motion.Tests/SyntheticPen.Motion.Tests.csproj -c Release --no-restore
+        shell: pwsh
+      - name: Test
+        run: |
+          dotnet test app/tests/SyntheticPen.Core.Tests/SyntheticPen.Core.Tests.csproj -c Release --no-build --verbosity normal
+          dotnet test app/tests/SyntheticPen.Svg.Tests/SyntheticPen.Svg.Tests.csproj -c Release --no-build --verbosity normal
+          dotnet test app/tests/SyntheticPen.Motion.Tests/SyntheticPen.Motion.Tests.csproj -c Release --no-build --verbosity normal
+        shell: pwsh
