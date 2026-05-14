@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SyntheticPen.App.Views.PlottingIndicator"
+        SystemDecorations="None"
+        WindowStartupLocation="Manual"
+        Width="220" Height="40"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        CanResize="False">
+    <Border Background="#CC0A0A0A" BorderBrush="#4DA3FF" BorderThickness="1" CornerRadius="2">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+            <Ellipse Width="8" Height="8" Fill="#6BE6FF" Margin="0,0,10,0"/>
+            <TextBlock Text="PLOTTING"
+                       Foreground="#F5F5F5"
+                       FontFamily="Consolas"
+                       FontSize="12"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</Window>
