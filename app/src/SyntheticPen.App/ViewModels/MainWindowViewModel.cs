@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SyntheticPen.Core.Playback;
-using SyntheticPen.Input;
 
 namespace SyntheticPen.App.ViewModels;
 
