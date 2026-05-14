@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Privacy — SyntheticPen" description="SyntheticPen privacy policy.">
+  <main class="container" style="padding: 80px 32px;">
+    <h1 style="font-size: clamp(32px, 4vw, 52px);">Privacy</h1>
+    <p style="color: var(--silver); margin-top: 16px;">
+      SyntheticPen does not collect, transmit, or store any personal data. The application runs entirely
+      on your device. No telemetry, no analytics, no network calls.
+    </p>
+    <h2 style="margin-top: 32px;">Local files</h2>
+    <p style="color: var(--silver);">
+      Any SVGs or motion profiles you load remain on your machine. Settings are stored in your user
+      profile under <code>%APPDATA%\SyntheticPen</code>.
+    </p>
+    <h2 style="margin-top: 32px;">Contact</h2>
+    <p style="color: var(--silver);">
+      Questions? Open an issue on the project's GitHub repository.
+    </p>
+  </main>
+</BaseLayout>

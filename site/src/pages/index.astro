@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.tsx';
+import Hero from '../components/Hero.tsx';
+import Footer from '../components/Footer.tsx';
+---
+<BaseLayout title="SyntheticPen — Virtual Pen Plotter for Windows">
+  <Header client:load />
+  <main>
+    <Hero client:load />
+
+    <section id="what" class="container" style="padding: 80px 32px;">
+      <p class="mono" style="color: var(--silver); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px;">01 / What it is</p>
+      <h2 style="font-size: clamp(32px, 4vw, 52px); margin-top: 16px;">A virtual pen plotter that lives inside Windows.</h2>
+      <p style="color: var(--silver); max-width: 720px; margin-top: 16px;">SyntheticPen reads vector geometry — SVG paths, glyph outlines, hand-drawn signatures — and replays it as synthetic mouse and pen input.</p>
+    </section>
+
+    <section id="how" class="container" style="padding: 80px 32px;">
+      <p class="mono" style="color: var(--silver); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px;">02 / How it works</p>
+      <h2 style="font-size: clamp(32px, 4vw, 52px); margin-top: 16px;">From vector to input in three stages.</h2>
+      <p style="color: var(--silver); max-width: 720px; margin-top: 16px;">Parse → Plan → Inject. Each stage is deterministic, scriptable, and inspectable.</p>
+    </section>
+
+    <section id="use" class="container" style="padding: 80px 32px;">
+      <p class="mono" style="color: var(--silver); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px;">03 / Use cases</p>
+      <h2 style="font-size: clamp(32px, 4vw, 52px); margin-top: 16px;">Anywhere the OS accepts a pointer.</h2>
+    </section>
+
+    <section id="tech" class="container" style="padding: 80px 32px;">
+      <p class="mono" style="color: var(--silver); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px;">04 / Technology</p>
+      <h2 style="font-size: clamp(32px, 4vw, 52px); margin-top: 16px;">Built like motion control hardware.</h2>
+    </section>
+
+    <section id="cta" class="container" style="padding: 100px 32px;">
+      <div style="border: 1px solid rgba(77,163,255,0.2); padding: 64px 56px; text-align: center;">
+        <h2 style="font-size: clamp(36px, 5vw, 64px); text-transform: uppercase; letter-spacing: -0.02em;">Bring your geometry into motion.</h2>
+        <p style="color: var(--silver); margin-top: 16px;">Free during beta. No telemetry. Single signed binary.</p>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>

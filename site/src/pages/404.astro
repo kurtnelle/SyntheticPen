@@ -1,0 +1,12 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Not Found — SyntheticPen">
+  <main class="container" style="padding: 120px 32px; text-align: center;">
+    <p class="mono" style="color: var(--blue); letter-spacing: 0.2em;">404</p>
+    <h1 style="font-size: clamp(36px, 5vw, 64px); margin-top: 16px;">Off the canvas.</h1>
+    <p style="color: var(--silver); margin-top: 16px;">
+      <a href={import.meta.env.BASE_URL} style="color: var(--blue);">Return home →</a>
+    </p>
+  </main>
+</BaseLayout>
