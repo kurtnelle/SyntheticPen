@@ -1,46 +1,69 @@
 using System.Runtime.InteropServices;
 using SyntheticPen.Core.Models;
+using SyntheticPen.Input.Win32;
+using static SyntheticPen.Input.Win32.SendInputNative;
 
 namespace SyntheticPen.Input;
 
 public sealed class MouseSendInputInjector : ICursorInjector
 {
-    public Task MoveAsync(PointF point, CancellationToken ct = default)
-        => throw new NotImplementedException("Phase 1");
+    public Task MoveAsync(PointF screenPoint, CancellationToken ct = default)
+    {
+        EnforceDenyList();
+        SendMouse((int)Math.Round(screenPoint.X), (int)Math.Round(screenPoint.Y),
+            MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+        return Task.CompletedTask;
+    }
 
     public Task PenDownAsync(CancellationToken ct = default)
-        => throw new NotImplementedException("Phase 1");
+    {
+        EnforceDenyList();
+        Send(MOUSEEVENTF_LEFTDOWN);
+        return Task.CompletedTask;
+    }
 
     public Task PenUpAsync(CancellationToken ct = default)
-        => throw new NotImplementedException("Phase 1");
-
-    // P/Invoke signatures reserved for Phase 1.
-#pragma warning disable IDE0051, CA1812
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, ref INPUT pInputs, int cbSize);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct INPUT
     {
-        public uint type;
-        public InputUnion U;
+        // Pen-up is always allowed — we want to RELEASE the button even if the
+        // foreground became a credential surface mid-stroke. Never leave it stuck.
+        Send(MOUSEEVENTF_LEFTUP);
+        return Task.CompletedTask;
     }
 
-    [StructLayout(LayoutKind.Explicit)]
-    private struct InputUnion
+    private static void EnforceDenyList()
     {
-        [FieldOffset(0)] public MOUSEINPUT mi;
+        if (ForegroundClassName.IsDenied(out var name))
+            throw new InjectionBlockedException($"foreground window class '{name}' is on the deny list");
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MOUSEINPUT
+    private static void SendMouse(int physX, int physY, uint flags)
     {
-        public int dx;
-        public int dy;
-        public uint mouseData;
-        public uint dwFlags;
-        public uint time;
-        public IntPtr dwExtraInfo;
+        int vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        int vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        int nx = (int)Math.Round((physX - vx) * 65535.0 / Math.Max(1, vw - 1));
+        int ny = (int)Math.Round((physY - vy) * 65535.0 / Math.Max(1, vh - 1));
+
+        var input = new INPUT
+        {
+            type = INPUT_MOUSE,
+            U = new InputUnion { mi = new MOUSEINPUT { dx = nx, dy = ny, dwFlags = flags } }
+        };
+        var sent = SendInput(1, ref input, Marshal.SizeOf<INPUT>());
+        if (sent == 0)
+            throw new InjectionBlockedException("SendInput returned 0 (UIPI / integrity?)");
     }
-#pragma warning restore IDE0051, CA1812
+
+    private static void Send(uint flags)
+    {
+        var input = new INPUT
+        {
+            type = INPUT_MOUSE,
+            U = new InputUnion { mi = new MOUSEINPUT { dwFlags = flags } }
+        };
+        var sent = SendInput(1, ref input, Marshal.SizeOf<INPUT>());
+        if (sent == 0)
+            throw new InjectionBlockedException("SendInput returned 0 (UIPI / integrity?)");
+    }
 }
