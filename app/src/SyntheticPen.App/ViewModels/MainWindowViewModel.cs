@@ -1,12 +1,18 @@
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
+using SyntheticPen.App.Views;
 using SyntheticPen.Core.Playback;
+using SyntheticPen.Core.Targeting;
 
 namespace SyntheticPen.App.ViewModels;
 
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly IPlaybackController _playback;
+    private readonly ITargetRegionProvider _regions = Program.Services.GetRequiredService<ITargetRegionProvider>();
 
     public MainWindowViewModel(IPlaybackController playback)
     {
@@ -28,7 +34,27 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand] private Task OpenSvgAsync() => Task.CompletedTask;  // Task 15
     [RelayCommand] private void Exit() { /* Task 15 */ }
     [RelayCommand] private void About() { /* Task 16 */ }
-    [RelayCommand] private Task CalibrateAsync() => Task.CompletedTask; // Task 12
+
+    [RelayCommand]
+    private async Task CalibrateAsync()
+    {
+        var owner = (Avalonia.Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return;
+
+        owner.WindowState = WindowState.Minimized;
+        var overlay = new CalibrationOverlay();
+        await overlay.ShowDialog(owner);
+        owner.WindowState = WindowState.Normal;
+        owner.Activate();
+
+        if (overlay.SelectedRect is { } r)
+        {
+            _regions.Set(r);
+            TargetRegionLabel = $"{(int)r.W}×{(int)r.H} at ({(int)r.X},{(int)r.Y})";
+        }
+    }
+
     [RelayCommand] private Task StartAsync() => Task.CompletedTask;     // Task 15
     [RelayCommand] private Task StopAsync() => Task.CompletedTask;      // Task 15
 }

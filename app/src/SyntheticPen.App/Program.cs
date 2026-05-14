@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SyntheticPen.App.ViewModels;
 using SyntheticPen.Core.Playback;
+using SyntheticPen.Core.Targeting;
 using SyntheticPen.Input;
 using SyntheticPen.Motion;
 using SyntheticPen.Rendering;
@@ -23,6 +24,7 @@ internal static class Program
         host.Services.AddSingleton<ICursorInjector, MouseSendInputInjector>();
         host.Services.AddSingleton<IStrokePreviewRenderer, StrokePreviewRenderer>();
         host.Services.AddSingleton<IPlaybackController, PlaybackController>();
+        host.Services.AddSingleton<ITargetRegionProvider, TargetRegionProvider>();
         host.Services.AddSingleton<MainWindowViewModel>();
 
         Services = host.Build().Services;
