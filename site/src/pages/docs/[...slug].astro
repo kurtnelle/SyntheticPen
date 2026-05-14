@@ -1,0 +1,22 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  return docs.map(entry => ({
+    params: { slug: entry.id.replace(/\.(md|mdx)$/, '') },
+    props: { entry }
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<BaseLayout title={`${entry.data.title} — SyntheticPen`}>
+  <main class="container" style="padding: 80px 32px; max-width: 760px;">
+    <article style="color: var(--silver); line-height: 1.7;">
+      <Content />
+    </article>
+  </main>
+</BaseLayout>
