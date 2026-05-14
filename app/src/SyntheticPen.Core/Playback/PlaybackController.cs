@@ -78,10 +78,28 @@ public sealed class PlaybackController : IPlaybackController
             var delay = due - DateTime.UtcNow;
             if (delay > TimeSpan.Zero) await Task.Delay(delay, ct);
 
-            if (p.PenDown && !penDown) { await _injector.PenDownAsync(ct); penDown = true; }
-            else if (!p.PenDown && penDown) { await _injector.PenUpAsync(ct); penDown = false; }
-
-            await _injector.MoveAsync(p.Point, ct);
+            if (p.PenDown && !penDown)
+            {
+                // Move to the stroke's first point FIRST, then put the pen down at that
+                // position. Synthetic-pointer injection carries position with every event;
+                // calling PenDownAsync before the move issues a down at the previous cursor
+                // (or worse, the injector's default (0,0)) and target apps render a phantom
+                // stroke from there.
+                await _injector.MoveAsync(p.Point, ct);
+                await _injector.PenDownAsync(ct);
+                penDown = true;
+            }
+            else if (!p.PenDown && penDown)
+            {
+                // Lift the pen before traveling so we don't smear ink across the air gap.
+                await _injector.PenUpAsync(ct);
+                penDown = false;
+                await _injector.MoveAsync(p.Point, ct);
+            }
+            else
+            {
+                await _injector.MoveAsync(p.Point, ct);
+            }
         }
 
         if (penDown) await _injector.PenUpAsync(ct);

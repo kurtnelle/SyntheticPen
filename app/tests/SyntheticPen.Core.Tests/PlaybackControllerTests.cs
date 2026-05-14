@@ -32,7 +32,7 @@ public class PlaybackControllerTests
     }
 
     [Fact]
-    public async Task PlayAsync_emits_DOWN_then_moves_then_UP_for_single_stroke()
+    public async Task PlayAsync_moves_to_first_point_then_DOWN_then_moves_then_UP_for_single_stroke()
     {
         var injector = new FakeInjector();
         var ctrl = new PlaybackController(injector, new DefaultMotionPlanner());
@@ -40,7 +40,10 @@ public class PlaybackControllerTests
 
         await ctrl.PlayAsync(strokes, new PlaybackOptions(SampleHz: 100, Countdown: TimeSpan.Zero));
 
-        injector.Events.First().Should().Be("DOWN");
+        // Move-to-first precedes pen-down so synthetic-pointer injection
+        // puts the ink at the right screen position.
+        injector.Events[0].Should().StartWith("M(");
+        injector.Events[1].Should().Be("DOWN");
         injector.Events.Last().Should().Be("UP");
         injector.Events.Count(e => e.StartsWith("M(")).Should().BeGreaterThan(2);
     }
