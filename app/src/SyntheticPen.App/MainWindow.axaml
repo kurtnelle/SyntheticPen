@@ -25,10 +25,10 @@
         </Menu>
         <Grid Grid.Row="1" ColumnDefinitions="*,360">
             <Border Grid.Column="0" Background="#101418" Padding="16">
-                <TextBlock Text="Stroke preview"
-                           Foreground="#A6A6A6"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                <Viewbox Stretch="Uniform" StretchDirection="Both">
+                    <Path Stroke="#4DA3FF" StrokeThickness="1.5"
+                          Data="{Binding PreviewGeometry}" />
+                </Viewbox>
             </Border>
             <StackPanel Grid.Column="1" Margin="16" Spacing="12">
                 <TextBlock Text="Playback" FontWeight="SemiBold"/>

@@ -1,23 +1,55 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using SyntheticPen.App.Views;
+using SyntheticPen.Core;
 using SyntheticPen.Core.Playback;
 using SyntheticPen.Core.Targeting;
+using SyntheticPen.Hotkeys;
+using SyntheticPen.Rendering;
+using SyntheticPen.Svg;
+using ModelRect = SyntheticPen.Core.Models.Rect;
 
 namespace SyntheticPen.App.ViewModels;
 
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly IPlaybackController _playback;
-    private readonly ITargetRegionProvider _regions = Program.Services.GetRequiredService<ITargetRegionProvider>();
+    private readonly ISvgPathLoader _loader;
+    private readonly IStrokePreviewRenderer _previewRenderer;
+    private readonly ITargetRegionProvider _regions;
+    private readonly IGlobalHotkeyService _hotkeys;
+    private readonly InjectorFactory _injectorFactory;
+    private readonly IMotionPlanner _planner;
 
-    public MainWindowViewModel(IPlaybackController playback)
+    private SvgDocument? _doc;
+    private CountdownOverlay? _countdown;
+    private PlottingIndicator? _indicator;
+
+    public MainWindowViewModel(
+        IPlaybackController playback,
+        ISvgPathLoader loader,
+        IStrokePreviewRenderer previewRenderer,
+        ITargetRegionProvider regions,
+        IGlobalHotkeyService hotkeys,
+        InjectorFactory injectorFactory,
+        IMotionPlanner planner)
     {
         _playback = playback;
-        _playback.StateChanged += s => StateText = s.ToString();
+        _loader = loader;
+        _previewRenderer = previewRenderer;
+        _regions = regions;
+        _hotkeys = hotkeys;
+        _injectorFactory = injectorFactory;
+        _planner = planner;
+
+        _playback.StateChanged += OnStateChanged;
+        _playback.CountdownTick += OnCountdownTick;
+        _hotkeys.EmergencyStopRequested += () => _playback.RequestStop();
         StateText = _playback.State.ToString();
     }
 
@@ -28,20 +60,37 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isAlwaysOnTop = true;
     [ObservableProperty] private string _svgFileLabel = "(no file)";
     [ObservableProperty] private string _targetRegionLabel = "(not set)";
+    [ObservableProperty] private Geometry? _previewGeometry;
 
     public InjectionMode[] InjectionModes { get; } = Enum.GetValues<InjectionMode>();
 
-    [RelayCommand] private Task OpenSvgAsync() => Task.CompletedTask;  // Task 15
-    [RelayCommand] private void Exit() { /* Task 15 */ }
-    [RelayCommand] private void About() { /* Task 16 */ }
+    [RelayCommand]
+    private async Task OpenSvgAsync()
+    {
+        var owner = MainWindow();
+        if (owner is null) return;
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open SVG",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("SVG files") { Patterns = new[] { "*.svg" } }
+            }
+        });
+        if (files.Count == 0) return;
+
+        await using var s = await files[0].OpenReadAsync();
+        _doc = await _loader.LoadAsync(s, new FlattenOptions(0.25));
+        SvgFileLabel = files[0].Name;
+        PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(_doc.Strokes);
+    }
 
     [RelayCommand]
     private async Task CalibrateAsync()
     {
-        var owner = (Avalonia.Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow();
         if (owner is null) return;
-
         owner.WindowState = WindowState.Minimized;
         var overlay = new CalibrationOverlay();
         await overlay.ShowDialog(owner);
@@ -55,6 +104,71 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand] private Task StartAsync() => Task.CompletedTask;     // Task 15
-    [RelayCommand] private Task StopAsync() => Task.CompletedTask;      // Task 15
+    [RelayCommand]
+    private async Task StartAsync()
+    {
+        if (_doc is null || _regions.Current is null) return;
+
+        var screenStrokes = StrokeTransform.FitToScreen(_doc.Strokes, _doc.SourceViewBox, _regions.Current.Value);
+
+        var injector = _injectorFactory.Create(SelectedInjectionMode);
+        var ctrl = new PlaybackController(injector, _planner);
+        ctrl.StateChanged += OnStateChanged;
+        ctrl.CountdownTick += OnCountdownTick;
+
+        try
+        {
+            await ctrl.PlayAsync(screenStrokes,
+                new PlaybackOptions(
+                    SpeedMultiplier: SpeedMultiplier,
+                    Mode: SelectedInjectionMode,
+                    Countdown: TimeSpan.FromSeconds(3)));
+        }
+        finally
+        {
+            if (injector is IDisposable d) d.Dispose();
+        }
+    }
+
+    [RelayCommand]
+    private void Stop() => _playback.RequestStop();
+
+    [RelayCommand]
+    private void Exit() =>
+        (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+
+    [RelayCommand]
+    private void About() { /* implemented in Task 16 */ }
+
+    private void OnStateChanged(PlaybackState s)
+    {
+        StateText = s.ToString();
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (s == PlaybackState.CountingDown)
+            {
+                _countdown ??= new CountdownOverlay();
+                _countdown.Show();
+            }
+            else if (s == PlaybackState.Playing)
+            {
+                _countdown?.Close(); _countdown = null;
+                _indicator ??= new PlottingIndicator();
+                _indicator.Show();
+            }
+            else
+            {
+                _countdown?.Close(); _countdown = null;
+                _indicator?.Close(); _indicator = null;
+            }
+        });
+    }
+
+    private void OnCountdownTick(TimeSpan remaining)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _countdown?.SetRemaining(remaining));
+    }
+
+    private static Window? MainWindow()
+        => (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 }

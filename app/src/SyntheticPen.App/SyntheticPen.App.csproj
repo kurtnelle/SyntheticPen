@@ -23,5 +23,6 @@
     <ProjectReference Include="..\SyntheticPen.Motion\SyntheticPen.Motion.csproj" />
     <ProjectReference Include="..\SyntheticPen.Input\SyntheticPen.Input.csproj" />
     <ProjectReference Include="..\SyntheticPen.Rendering\SyntheticPen.Rendering.csproj" />
+    <ProjectReference Include="..\SyntheticPen.Hotkeys\SyntheticPen.Hotkeys.csproj" />
   </ItemGroup>
 </Project>

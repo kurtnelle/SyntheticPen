@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SyntheticPen.Core\SyntheticPen.Core.csproj" />
+    <PackageReference Include="Avalonia" />
   </ItemGroup>
 
   <PropertyGroup>
