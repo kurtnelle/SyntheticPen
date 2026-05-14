@@ -150,8 +150,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
         StateText = s.ToString();
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
+            var owner = MainWindow();
             if (s == PlaybackState.CountingDown)
             {
+                // Minimize the main window so it doesn't sit over the calibrated target region
+                // and absorb SendInput events that should reach the target app.
+                if (owner is not null) owner.WindowState = WindowState.Minimized;
                 _countdown ??= new CountdownOverlay();
                 _countdown.Show();
             }
@@ -161,10 +165,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 _indicator ??= new PlottingIndicator();
                 _indicator.Show();
             }
-            else
+            else // Idle, Cancelling end
             {
                 _countdown?.Close(); _countdown = null;
                 _indicator?.Close(); _indicator = null;
+                if (owner is not null) { owner.WindowState = WindowState.Normal; owner.Activate(); }
             }
         });
     }
