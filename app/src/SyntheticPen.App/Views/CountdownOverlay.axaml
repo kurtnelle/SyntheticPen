@@ -17,8 +17,12 @@
                    Text="3"
                    FontSize="160"
                    FontWeight="Bold"
-                   Foreground="#F5F5F5"
+                   Foreground="#6BE6FF"
                    HorizontalAlignment="Center"
-                   VerticalAlignment="Center"/>
+                   VerticalAlignment="Center">
+            <TextBlock.Effect>
+                <DropShadowEffect Color="#0A0A0A" BlurRadius="12" OffsetX="0" OffsetY="0" Opacity="0.85"/>
+            </TextBlock.Effect>
+        </TextBlock>
     </Border>
 </Window>
