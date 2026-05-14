@@ -6,5 +6,6 @@
     <Project Path="src/SyntheticPen.Motion/SyntheticPen.Motion.csproj" />
     <Project Path="src/SyntheticPen.Rendering/SyntheticPen.Rendering.csproj" />
     <Project Path="src/SyntheticPen.Svg/SyntheticPen.Svg.csproj" />
+    <Project Path="src/SyntheticPen.Package/SyntheticPen.Package.wapproj" Type="C7167F0D-BC9F-4E6E-AFE1-012C56B48DB5" />
   </Folder>
 </Solution>
