@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NuGetAuditMode>direct</NuGetAuditMode>
     <Deterministic>true</Deterministic>
     <NeutralLanguage>en-US</NeutralLanguage>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>

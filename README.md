@@ -18,7 +18,7 @@ A virtual pen plotter for Windows — converts SVG paths and other vector geomet
 
 ### Prerequisites
 - Windows 10 1809+ (for MSIX packaging)
-- .NET 8 SDK (8.0.400 or newer for `.slnx` support)
+- .NET 10 SDK (10.0.300 or newer)
 - Node.js 20+
 - (optional) Visual Studio 2022 17.10+ for IDE solution support
 
