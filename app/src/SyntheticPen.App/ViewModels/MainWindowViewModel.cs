@@ -19,12 +19,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private double _speedMultiplier = 1.0;
     [ObservableProperty] private bool _humanize;
     [ObservableProperty] private InjectionMode _selectedInjectionMode = InjectionMode.Mouse;
+    [ObservableProperty] private bool _isAlwaysOnTop = true;
+    [ObservableProperty] private string _svgFileLabel = "(no file)";
+    [ObservableProperty] private string _targetRegionLabel = "(not set)";
 
     public InjectionMode[] InjectionModes { get; } = Enum.GetValues<InjectionMode>();
 
-    [RelayCommand] private Task OpenSvgAsync() => Task.CompletedTask;
-    [RelayCommand] private void Exit() { /* TODO Phase 1: graceful shutdown */ }
-    [RelayCommand] private void About() { /* TODO Phase 1: about dialog */ }
-    [RelayCommand] private Task StartAsync() => Task.CompletedTask;
-    [RelayCommand] private Task StopAsync() => Task.CompletedTask;
+    [RelayCommand] private Task OpenSvgAsync() => Task.CompletedTask;  // Task 15
+    [RelayCommand] private void Exit() { /* Task 15 */ }
+    [RelayCommand] private void About() { /* Task 16 */ }
+    [RelayCommand] private Task CalibrateAsync() => Task.CompletedTask; // Task 12
+    [RelayCommand] private Task StartAsync() => Task.CompletedTask;     // Task 15
+    [RelayCommand] private Task StopAsync() => Task.CompletedTask;      // Task 15
 }
