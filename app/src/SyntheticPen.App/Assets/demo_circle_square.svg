@@ -1,6 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- Square: 160x160 outer outline, traced first -->
-  <path d="M 20 20 L 180 20 L 180 180 L 20 180 Z"/>
+  <!-- Square: four separate strokes so ink apps render crisp corners
+       (a single polyline path causes Whiteboard / Concepts / OneNote to
+       smooth abrupt direction changes). -->
+  <path d="M 20 20 L 180 20"/>
+  <path d="M 180 20 L 180 180"/>
+  <path d="M 180 180 L 20 180"/>
+  <path d="M 20 180 L 20 20"/>
   <!-- Circle: r=80, centered at (100,100). 4 cubic-bezier arc segments, k=0.5522847498 -->
   <path d="M 100 20
            C 144.183 20 180 55.817 180 100
