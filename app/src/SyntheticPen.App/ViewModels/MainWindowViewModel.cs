@@ -188,6 +188,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
             else if (s == PlaybackState.Playing)
             {
                 _countdown?.Close(); _countdown = null;
+                // Focus the window under the center of the target rect so the first
+                // SendInput / pen event lands on the intended app rather than whatever
+                // was foreground (e.g. our minimized main window).
+                if (_regions.Current is { } r)
+                {
+                    Win32.WindowInterop.FocusWindowAt(
+                        (int)(r.X + r.W / 2.0),
+                        (int)(r.Y + r.H / 2.0));
+                }
                 _indicator ??= new PlottingIndicator();
                 _indicator.Show();
             }

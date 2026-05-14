@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using SyntheticPen.App.Win32;
 using ModelRect = SyntheticPen.Core.Models.Rect;
 
 namespace SyntheticPen.App.Views;
@@ -14,6 +15,7 @@ public partial class CountdownOverlay : Window
     {
         InitializeComponent();
         _number = this.FindControl<TextBlock>("Number")!;
+        Opened += (_, _) => WindowInterop.MakeClickThrough(this);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
