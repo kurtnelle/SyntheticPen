@@ -81,7 +81,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _stateText = string.Empty;
     [ObservableProperty] private double _speedMultiplier = 1.0;
     [ObservableProperty] private bool _humanize;
-    [ObservableProperty] private InjectionMode _selectedInjectionMode = InjectionMode.Mouse;
+    [ObservableProperty] private InjectionMode _selectedInjectionMode = InjectionMode.SyntheticPointer;
     [ObservableProperty] private bool _isAlwaysOnTop = true;
     [ObservableProperty] private string _svgFileLabel = "(no file)";
     [ObservableProperty] private string _targetRegionLabel = "(not set)";
