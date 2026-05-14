@@ -1,0 +1,47 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.userprefs
+artifacts/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# MSIX
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+GeneratedArtifacts/
+
+# Node / Astro
+node_modules/
+dist/
+.astro/
+.cache/
+.turbo/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editors
+*.swp
+*~
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
