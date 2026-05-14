@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/SyntheticPen.App/SyntheticPen.App.csproj" />
     <Project Path="src/SyntheticPen.Core/SyntheticPen.Core.csproj" />
     <Project Path="src/SyntheticPen.Input/SyntheticPen.Input.csproj" />
     <Project Path="src/SyntheticPen.Motion/SyntheticPen.Motion.csproj" />
