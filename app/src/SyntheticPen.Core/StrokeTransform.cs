@@ -44,7 +44,9 @@ public static class StrokeTransform
                     (src[j].X - sourceViewBox.X) * sx + offsetX,
                     (src[j].Y - sourceViewBox.Y) * sy + offsetY);
             }
-            result[i] = new Stroke(dst);
+            // Pressure is per-point and scale-invariant — only positions are
+            // transformed, so carry the source pressures through unchanged.
+            result[i] = new Stroke(dst, source[i].Pressures);
         }
         return result;
     }

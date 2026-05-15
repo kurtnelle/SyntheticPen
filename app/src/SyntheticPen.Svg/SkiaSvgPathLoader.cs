@@ -58,6 +58,198 @@ public sealed class SkiaSvgPathLoader : ISvgPathLoader
         }, ct);
     }
 
+    /// <summary>
+    /// Build the SVG's <b>visible ink</b> as a single fillable <see cref="SKPath"/>
+    /// in user space, plus the effective viewBox. Filled shapes/glyphs contribute
+    /// their region; stroked shapes are converted to their stroke outline (so the
+    /// rasterizer sees true ink width). Reuses the same font resolution as the
+    /// stroke loader, so the comma-separated font-family fallback list is honoured
+    /// — Svg.Skia's renderer does not, which is why cursive signatures fell back
+    /// to a default sans-serif. Used by the centerline (vectorize) pipeline.
+    /// </summary>
+    public static (SKPath Path, Rect ViewBox) BuildFillGeometry(Stream svgStream)
+    {
+        using var ms = new MemoryStream();
+        svgStream.CopyTo(ms);
+        ms.Position = 0;
+
+        XmlDocument xml;
+        try
+        {
+            xml = new XmlDocument { PreserveWhitespace = false };
+            xml.Load(ms);
+        }
+        catch (XmlException ex)
+        {
+            throw new SvgParseException($"SVG XML is malformed: {ex.Message}", ex, ex.LineNumber);
+        }
+
+        var root = xml.DocumentElement;
+        if (root == null || !string.Equals(root.LocalName, "svg", StringComparison.OrdinalIgnoreCase))
+            throw new SvgParseException("Document root is not <svg>.");
+
+        var declared = ParseViewBox(root);
+        var combined = new SKPath { FillType = SKPathFillType.Winding };
+        CollectFillPaths(root, SKMatrix.CreateIdentity(), combined);
+
+        Rect viewBox;
+        if (!combined.IsEmpty)
+        {
+            var b = combined.TightBounds;
+            var contentRect = new Rect(b.Left, b.Top, b.Width, b.Height);
+            viewBox = declared is { } d ? UnionRect(d, contentRect) : contentRect;
+        }
+        else
+        {
+            viewBox = declared ?? new Rect(0, 0, 100, 100);
+        }
+        return (combined, viewBox);
+    }
+
+    private static void CollectFillPaths(XmlElement element, SKMatrix transform, SKPath combined)
+    {
+        var localTransform = ApplyTransformAttr(transform, element.GetAttribute("transform"));
+
+        foreach (XmlNode childNode in element.ChildNodes)
+        {
+            if (childNode is not XmlElement child) continue;
+            switch (child.LocalName.ToLowerInvariant())
+            {
+                case "g":
+                case "svg":
+                    CollectFillPaths(child, localTransform, combined);
+                    break;
+                case "path":
+                {
+                    var p = SKPath.ParseSvgPathData(child.GetAttribute("d"));
+                    if (p is not null) AppendInk(child, p, localTransform, combined);
+                    break;
+                }
+                case "polygon":
+                case "polyline":
+                {
+                    var p = BuildPolyPath(child, closed: child.LocalName.Equals("polygon", StringComparison.OrdinalIgnoreCase));
+                    if (p is not null) AppendInk(child, p, localTransform, combined);
+                    break;
+                }
+                case "line":
+                {
+                    var p = new SKPath();
+                    p.MoveTo((float)ParseAttr(child, "x1"), (float)ParseAttr(child, "y1"));
+                    p.LineTo((float)ParseAttr(child, "x2"), (float)ParseAttr(child, "y2"));
+                    AppendInk(child, p, localTransform, combined);
+                    break;
+                }
+                case "text":
+                {
+                    var p = BuildTextPath(child);
+                    if (p is not null) AppendInk(child, p, localTransform, combined);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Add an element's visible region to <paramref name="combined"/>: the fill
+    /// area if it has a fill, plus the stroke outline (expanded by stroke-width)
+    /// if it is stroked. SVG defaults apply — fill is black unless explicitly
+    /// "none", stroke is absent unless set.
+    /// </summary>
+    private static void AppendInk(XmlElement el, SKPath path, SKMatrix transform, SKPath combined)
+    {
+        using (path)
+        {
+            var styleAttr = el.GetAttribute("style");
+            string? fill = GetStyleValue(styleAttr, "fill") ?? NullIfEmpty(el.GetAttribute("fill"));
+            string? stroke = GetStyleValue(styleAttr, "stroke") ?? NullIfEmpty(el.GetAttribute("stroke"));
+            bool hasFill = !string.Equals(fill, "none", StringComparison.OrdinalIgnoreCase)
+                           && !string.Equals(fill, "transparent", StringComparison.OrdinalIgnoreCase);
+            bool hasStroke = stroke is not null
+                             && !string.Equals(stroke, "none", StringComparison.OrdinalIgnoreCase);
+
+            if (hasFill)
+            {
+                using var f = new SKPath(path);
+                f.Transform(transform);
+                combined.AddPath(f);
+            }
+
+            if (hasStroke)
+            {
+                var widthStr = GetStyleValue(styleAttr, "stroke-width") ?? NullIfEmpty(el.GetAttribute("stroke-width"));
+                float w = widthStr is null ? 1f : (float)ParseLength(widthStr);
+                if (w <= 0) w = 1f;
+
+                using var strokePaint = new SKPaint
+                {
+                    Style = SKPaintStyle.Stroke,
+                    StrokeWidth = w,
+                    StrokeCap = SKStrokeCap.Round,
+                    StrokeJoin = SKStrokeJoin.Round
+                };
+                using var outline = new SKPath();
+                if (strokePaint.GetFillPath(path, outline))
+                {
+                    outline.Transform(transform);
+                    combined.AddPath(outline);
+                }
+            }
+        }
+    }
+
+    private static SKPath? BuildPolyPath(XmlElement el, bool closed)
+    {
+        var attr = el.GetAttribute("points");
+        if (string.IsNullOrWhiteSpace(attr)) return null;
+        var nums = attr.Split(new[] { ' ', ',', '\t', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                       .Select(p => float.Parse(p, CultureInfo.InvariantCulture)).ToArray();
+        if (nums.Length < 4) return null;
+        var path = new SKPath();
+        path.MoveTo(nums[0], nums[1]);
+        for (int i = 2; i + 1 < nums.Length; i += 2) path.LineTo(nums[i], nums[i + 1]);
+        if (closed) path.Close();
+        return path;
+    }
+
+    /// <summary>Glyph-outline path for a &lt;text&gt; element, positioned at its
+    /// x/y baseline, using the same font resolution as the stroke loader.</summary>
+    private static SKPath? BuildTextPath(XmlElement el)
+    {
+        var text = ExtractText(el);
+        if (string.IsNullOrEmpty(text)) return null;
+
+        double x = ParseAttr(el, "x");
+        double y = ParseAttr(el, "y");
+        var styleAttr = el.GetAttribute("style");
+        var familyList = GetStyleValue(styleAttr, "font-family") ?? el.GetAttribute("font-family");
+        var sizeStr = GetStyleValue(styleAttr, "font-size") ?? el.GetAttribute("font-size");
+        float fontSize = ParseFontSize(sizeStr, defaultSize: 16f);
+
+        using var typeface = ResolveTypeface(familyList) ?? SKTypeface.FromFamilyName(null);
+        if (typeface is null) return null;
+        using var font = new SKFont(typeface, fontSize);
+
+        var glyphs = new ushort[text.Length];
+        font.GetGlyphs(text, glyphs);
+        var widths = new float[glyphs.Length];
+        font.GetGlyphWidths(glyphs.AsSpan(), widths, Span<SKRect>.Empty, null);
+
+        var path = new SKPath();
+        float penX = (float)x, penY = (float)y;
+        for (int i = 0; i < glyphs.Length; i++)
+        {
+            using var gp = font.GetGlyphPath(glyphs[i]);
+            if (gp is not null && !gp.IsEmpty)
+                path.AddPath(gp, penX, penY, SKPathAddMode.Append);
+            penX += widths[i];
+        }
+        if (path.IsEmpty) { path.Dispose(); return null; }
+        return path;
+    }
+
+    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
     private static Rect? ParseViewBox(XmlElement root)
     {
         var attr = root.GetAttribute("viewBox");

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SyntheticPen.Core\SyntheticPen.Core.csproj" />
+    <ProjectReference Include="..\SyntheticPen.Svg\SyntheticPen.Svg.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Svg.Skia" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+</Project>

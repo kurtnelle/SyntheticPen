@@ -7,11 +7,13 @@
     <Project Path="src/SyntheticPen.Motion/SyntheticPen.Motion.csproj" />
     <Project Path="src/SyntheticPen.Rendering/SyntheticPen.Rendering.csproj" />
     <Project Path="src/SyntheticPen.Svg/SyntheticPen.Svg.csproj" />
+    <Project Path="src/SyntheticPen.Vectorize/SyntheticPen.Vectorize.csproj" />
     <Project Path="src/SyntheticPen.Package/SyntheticPen.Package.wapproj" Type="c7167f0d-bc9f-4e6e-afe1-012c56b48db5" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SyntheticPen.Core.Tests/SyntheticPen.Core.Tests.csproj" />
     <Project Path="tests/SyntheticPen.Motion.Tests/SyntheticPen.Motion.Tests.csproj" />
     <Project Path="tests/SyntheticPen.Svg.Tests/SyntheticPen.Svg.Tests.csproj" />
+    <Project Path="tests/SyntheticPen.Vectorize.Tests/SyntheticPen.Vectorize.Tests.csproj" />
   </Folder>
 </Solution>

@@ -75,6 +75,29 @@ public class DefaultMotionPlannerTests
             pts[i].Offset.Should().BeGreaterThanOrEqualTo(pts[i - 1].Offset);
     }
 
+    [Fact]
+    public async Task Pen_down_samples_interpolate_stroke_pressure()
+    {
+        var pts = new[] { new PointF(0, 0), new PointF(600, 0) };
+        var stroke = new Stroke(pts, new[] { 0f, 1f });
+
+        var pts2 = await Collect(_planner.Plan(new[] { stroke }, new PlanOptions(SampleHz: 100)));
+        var down = pts2.Where(p => p.PenDown).ToArray();
+
+        down.First().Pressure.Should().BeApproximately(0f, 0.05f);
+        down.Last().Pressure.Should().BeApproximately(1f, 0.05f);
+        // Monotonic non-decreasing along the ramp.
+        for (int i = 1; i < down.Length; i++)
+            down[i].Pressure.Should().BeGreaterThanOrEqualTo(down[i - 1].Pressure - 1e-4f);
+    }
+
+    [Fact]
+    public async Task Strokes_without_pressure_emit_full_pressure()
+    {
+        var pts = await Collect(_planner.Plan(new[] { S((0, 0), (100, 0)) }, new PlanOptions(SampleHz: 100)));
+        pts.Where(p => p.PenDown).Should().OnlyContain(p => p.Pressure == 1f);
+    }
+
     private static async Task<List<TimedPoint>> Collect(IAsyncEnumerable<TimedPoint> src)
     {
         var list = new List<TimedPoint>();

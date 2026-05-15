@@ -15,6 +15,10 @@
         <TextBlock Text="github.com/kurtnelle/SyntheticPen"
                    Foreground="#6BE6FF" FontSize="12"/>
         <Separator/>
+        <CheckBox Name="AutostartCheck"
+                  Content="Launch with Win+Shift+X (run a tiny helper at login)"
+                  Foreground="#F5F5F5" FontSize="12"
+                  IsCheckedChanged="OnAutostartChanged"/>
         <TextBlock TextWrapping="Wrap" Foreground="#A6A6A6" FontSize="12">
             <Run Text="Safety: press "/>
             <Run Text="Esc" FontWeight="Bold"/>

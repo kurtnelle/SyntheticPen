@@ -8,6 +8,10 @@ namespace SyntheticPen.Input;
 
 public sealed class MouseSendInputInjector : ICursorInjector
 {
+    /// <summary>Accepted for interface compatibility; the mouse has no
+    /// pressure channel so this is ignored.</summary>
+    public float Pressure { get; set; } = 1f;
+
     public Task MoveAsync(PointF screenPoint, CancellationToken ct = default)
     {
         EnforceDenyList();

@@ -18,6 +18,11 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
     // InjectSyntheticPointerInput reject the event.
     private bool _needsNew = true;
 
+    /// <summary>Pen pressure in [0,1]; mapped to the Win32 0..1024 range while
+    /// in contact. Clamped to ≥1 in contact so a 0 reading can't be mistaken
+    /// for "no contact" by the target.</summary>
+    public float Pressure { get; set; } = 1f;
+
     public SyntheticPointerInjector()
     {
         // mode = POINTER_FEEDBACK_DEFAULT (1)
@@ -64,7 +69,12 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
                     ptPixelLocation = new POINT { X = (int)Math.Round(p.X), Y = (int)Math.Round(p.Y) }
                 },
                 penMask = POINTER_PEN_MASK.PRESSURE,
-                pressure = _contact ? 512u : 0u   // 512 of 1024 = mid pressure; constant for Phase 1
+                // Win32 pen pressure is 0..1024. While in contact, map the
+                // [0,1] Pressure but never report 0 (some targets read 0 as a
+                // lift). Out of contact reports 0.
+                pressure = _contact
+                    ? (uint)Math.Clamp((int)MathF.Round(Math.Clamp(Pressure, 0f, 1f) * 1024f), 1, 1024)
+                    : 0u
             }
         };
 

@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using SyntheticPen.App.ViewModels;
 using SyntheticPen.App.Views;
 using ModelRect = SyntheticPen.Core.Models.Rect;
 
@@ -22,10 +24,6 @@ public partial class App : Application
 
             Dispatcher.UIThread.Post(async () =>
             {
-                // Brief pause so the bundled demo SVG has time to parse/render
-                // before the calibration overlay grabs the screen.
-                await System.Threading.Tasks.Task.Delay(150);
-
                 var rect = await AwaitCalibrationAsync();
                 if (rect is null)
                 {
@@ -36,7 +34,16 @@ public partial class App : Application
                 var window = new MainWindow();
                 window.FitPreviewTo(rect.Value);
                 window.Closed += (_, _) => desktop.Shutdown();
+                Program.ActivateMainWindow = window.BringToFront;
                 window.Show();
+
+                // Auto-open the SVG picker right after the user finishes the
+                // initial calibration — they almost certainly came here to load
+                // an SVG, so skip the extra click. Fire-and-forget; the user
+                // can cancel the dialog and use the window normally.
+                var vm = Program.Services.GetRequiredService<MainWindowViewModel>();
+                if (vm.OpenSvgCommand.CanExecute(null))
+                    vm.OpenSvgCommand.Execute(null);
             });
         }
         base.OnFrameworkInitializationCompleted();

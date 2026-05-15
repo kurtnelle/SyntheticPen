@@ -13,20 +13,33 @@ public class PlaybackControllerTests
 
     private sealed class FakeInjector : ICursorInjector
     {
+        public float Pressure { get; set; } = 1f;
         public List<string> Events { get; } = new();
+        // Pressure observed at each pen-down (the moment width is established).
+        public List<float> DownPressures { get; } = new();
         public Task MoveAsync(PointF p, CancellationToken ct = default) { Events.Add($"M({p.X:0.0},{p.Y:0.0})"); return Task.CompletedTask; }
-        public Task PenDownAsync(CancellationToken ct = default) { Events.Add("DOWN"); return Task.CompletedTask; }
+        public Task PenDownAsync(CancellationToken ct = default) { Events.Add("DOWN"); DownPressures.Add(Pressure); return Task.CompletedTask; }
         public Task PenUpAsync(CancellationToken ct = default) { Events.Add("UP"); return Task.CompletedTask; }
     }
 
     private sealed class FailFastInjector : ICursorInjector
     {
+        public float Pressure { get; set; } = 1f;
         public int MoveCalls;
         public Task MoveAsync(PointF p, CancellationToken ct = default)
         {
             if (++MoveCalls == 3) throw new InjectionBlockedException("denied");
             return Task.CompletedTask;
         }
+        public Task PenDownAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task PenUpAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class PressureRecorder : ICursorInjector
+    {
+        public float Pressure { get; set; } = 1f;
+        public List<float> MovePressures { get; } = new();
+        public Task MoveAsync(PointF p, CancellationToken ct = default) { MovePressures.Add(Pressure); return Task.CompletedTask; }
         public Task PenDownAsync(CancellationToken ct = default) => Task.CompletedTask;
         public Task PenUpAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
@@ -89,5 +102,38 @@ public class PlaybackControllerTests
 
         ticks.Should().HaveCountGreaterThanOrEqualTo(2);
         ticks.First().Should().Be(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task Per_point_pressure_flows_from_stroke_through_planner_to_injector()
+    {
+        // Pressure ramps 0 → 1 along the stroke; the injector should see it
+        // applied per sample, low at the start and high at the end.
+        var pts = new[] { new PointF(0, 0), new PointF(300, 0), new PointF(600, 0) };
+        var pressures = new[] { 0f, 0.5f, 1f };
+        var injector = new PressureRecorder();
+        var ctrl = new PlaybackController(injector, new DefaultMotionPlanner());
+
+        await ctrl.PlayAsync(new[] { new Stroke(pts, pressures) },
+            new PlaybackOptions(SampleHz: 100, Countdown: TimeSpan.Zero));
+
+        injector.MovePressures.Should().NotBeEmpty();
+        injector.MovePressures.Min().Should().BeLessThan(0.1f);
+        injector.MovePressures.Max().Should().BeGreaterThan(0.9f);
+        // First sample lighter than the last.
+        injector.MovePressures.First().Should().BeLessThan(injector.MovePressures.Last());
+    }
+
+    [Fact]
+    public async Task Strokes_without_pressure_default_to_full()
+    {
+        var injector = new PressureRecorder();
+        var ctrl = new PlaybackController(injector, new DefaultMotionPlanner());
+
+        await ctrl.PlayAsync(new[] { S((0, 0), (200, 0)) },
+            new PlaybackOptions(SampleHz: 100, Countdown: TimeSpan.Zero));
+
+        injector.MovePressures.Should().NotBeEmpty();
+        injector.MovePressures.Should().OnlyContain(p => p == 1f);
     }
 }

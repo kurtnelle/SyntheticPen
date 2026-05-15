@@ -49,7 +49,19 @@ public partial class MainWindow : Window
         WireGrip("GripSE", WindowEdge.SouthEast);
 
         var close = this.FindControl<Button>("CloseButton");
-        if (close is not null) close.Click += (_, _) => ShutdownApp();
+        if (close is not null)
+        {
+            close.Click += (_, _) => ShutdownApp();
+            // Toggle the `armed` class when the VM's IsCloseArmed flips so the
+            // button visually warns "press ESC again to close" via the style
+            // selector in MainWindow.axaml. Class binding isn't a one-liner in
+            // Avalonia 11, so we subscribe to PropertyChanged here.
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainWindowViewModel.IsCloseArmed))
+                    close.Classes.Set("armed", vm.IsCloseArmed);
+            };
+        }
 
         Opened += (_, _) => PushRegion();
         PositionChanged += (_, _) => PushRegion();
@@ -134,6 +146,22 @@ public partial class MainWindow : Window
             (int)(target.X - chromeLeft),
             (int)(target.Y - chromeTop));
     }
+
+    /// <summary>Restore + foreground the window in response to the global
+    /// hotkey hitting an already-running instance.</summary>
+    public void BringToFront()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+        var handle = TryGetPlatformHandle();
+        if (handle is not null && handle.Handle != IntPtr.Zero)
+            SetForegroundWindow(handle.Handle);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     private static void ShutdownApp()
     {

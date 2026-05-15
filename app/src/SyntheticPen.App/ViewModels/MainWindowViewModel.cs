@@ -11,22 +11,26 @@ using SyntheticPen.Core.Playback;
 using SyntheticPen.Core.Targeting;
 using SyntheticPen.Hotkeys;
 using SyntheticPen.Rendering;
-using SyntheticPen.Svg;
+using SyntheticPen.Vectorize;
 using ModelRect = SyntheticPen.Core.Models.Rect;
+using CoreStroke = SyntheticPen.Core.Models.Stroke;
 
 namespace SyntheticPen.App.ViewModels;
 
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly IPlaybackController _playback;
-    private readonly ISvgPathLoader _loader;
     private readonly IStrokePreviewRenderer _previewRenderer;
     private readonly ITargetRegionProvider _regions;
     private readonly IGlobalHotkeyService _hotkeys;
     private readonly InjectorFactory _injectorFactory;
     private readonly IMotionPlanner _planner;
 
-    private SvgDocument? _doc;
+    // Extracted centerline (the pen path) with per-point pressure, in SVG
+    // coordinate space, plus its tight bounding box used to fit it to the
+    // calibrated target region.
+    private IReadOnlyList<CoreStroke>? _strokes;
+    private ModelRect _sourceViewBox;
     private CountdownOverlay? _countdown;
     private PlottingIndicator? _indicator;
     private MainWindow? _mainWindow;
@@ -36,11 +40,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
     // current injection-mode selection).
     private IPlaybackController? _activePlayback;
 
+    // ESC handling state. _inCalibration suppresses idle close-arming while the
+    // CalibrationOverlay is open (it handles ESC itself and triggers shutdown
+    // via the null-rect path). _disarmCts cancels the 1-second "armed" window
+    // if a second ESC arrives quickly, so we can distinguish single from
+    // double presses without a separate input thread.
+    private bool _inCalibration;
+    private CancellationTokenSource? _disarmCts;
+
     public void AttachMainWindow(MainWindow window) => _mainWindow = window;
 
     public MainWindowViewModel(
         IPlaybackController playback,
-        ISvgPathLoader loader,
         IStrokePreviewRenderer previewRenderer,
         ITargetRegionProvider regions,
         IGlobalHotkeyService hotkeys,
@@ -48,7 +59,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
         IMotionPlanner planner)
     {
         _playback = playback;
-        _loader = loader;
         _previewRenderer = previewRenderer;
         _regions = regions;
         _hotkeys = hotkeys;
@@ -57,36 +67,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         _playback.StateChanged += OnStateChanged;
         _playback.CountdownTick += OnCountdownTick;
-        _hotkeys.EmergencyStopRequested += () => (_activePlayback ?? _playback).RequestStop();
+        _hotkeys.EmergencyStopRequested += OnEscapeFromHotkey;
         _regions.Changed += _ => OnPropertyChanged(nameof(HasRegion));
         StateText = _playback.State.ToString();
-
-        _ = LoadDemoSvgAsync();
-    }
-
-    private async Task LoadDemoSvgAsync()
-    {
-        try
-        {
-            var asm = typeof(MainWindowViewModel).Assembly;
-            var resourceName = asm.GetManifestResourceNames()
-                .FirstOrDefault(n => n.EndsWith("demo_circle_square.svg", StringComparison.Ordinal));
-            if (resourceName is null) return;
-            await using var s = asm.GetManifestResourceStream(resourceName);
-            if (s is null) return;
-            _doc = await _loader.LoadAsync(s, new FlattenOptions(0.25));
-            SvgFileLabel = "demo_circle_square.svg (built-in)";
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(_doc.Strokes);
-                PreviewSourceWidth = _doc.SourceViewBox.W;
-                PreviewSourceHeight = _doc.SourceViewBox.H;
-            });
-        }
-        catch
-        {
-            // Demo load is best-effort.
-        }
     }
 
     [ObservableProperty] private string _stateText = string.Empty;
@@ -98,6 +81,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private Geometry? _previewGeometry;
     [ObservableProperty] private double _previewSourceWidth = 100;
     [ObservableProperty] private double _previewSourceHeight = 100;
+    [ObservableProperty] private bool _isCloseArmed;
 
     public bool HasRegion => _regions.Current is not null;
 
@@ -119,12 +103,30 @@ public sealed partial class MainWindowViewModel : ObservableObject
         });
         if (files.Count == 0) return;
 
-        await using var s = await files[0].OpenReadAsync();
-        _doc = await _loader.LoadAsync(s, new FlattenOptions(0.25));
+        byte[] svgBytes;
+        await using (var s = await files[0].OpenReadAsync())
+        using (var buf = new MemoryStream())
+        {
+            await s.CopyToAsync(buf);
+            svgBytes = buf.ToArray();
+        }
+
+        // Centerline extraction is CPU-heavy (raster + EDT + thinning) — keep
+        // it off the UI thread. The result is the actual pen path with
+        // per-point pressure, which we use for both preview and replay.
+        var (strokes, viewBox) = await Task.Run(() =>
+        {
+            using var ms = new MemoryStream(svgBytes);
+            var centerlines = new CenterlineExtractor().Extract(ms);
+            return CenterlineStrokeAdapter.ToStrokes(centerlines);
+        });
+
+        _strokes = strokes;
+        _sourceViewBox = viewBox;
         SvgFileLabel = files[0].Name;
-        PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(_doc.Strokes);
-        PreviewSourceWidth = _doc.SourceViewBox.W;
-        PreviewSourceHeight = _doc.SourceViewBox.H;
+        PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(strokes);
+        PreviewSourceWidth = viewBox.W;
+        PreviewSourceHeight = viewBox.H;
     }
 
     [RelayCommand]
@@ -132,15 +134,24 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         // Hide the main window so the user can drag-select over the target app.
         _mainWindow?.Hide();
+        _inCalibration = true;
 
-        var rect = await AwaitCalibrationAsync();
+        ModelRect? rect;
+        try { rect = await AwaitCalibrationAsync(); }
+        finally { _inCalibration = false; }
 
-        if (rect is { } r)
+        // ESC during selection mode = quit the app. Matches the initial-launch
+        // calibration flow (App.OnFrameworkInitializationCompleted shuts down
+        // on a null rect there too).
+        if (rect is null)
         {
-            TargetRegionLabel = $"{(int)r.W}×{(int)r.H} at ({(int)r.X},{(int)r.Y})";
-            _mainWindow?.FitPreviewTo(r);
+            Shutdown();
+            return;
         }
 
+        var r = rect.Value;
+        TargetRegionLabel = $"{(int)r.W}×{(int)r.H} at ({(int)r.X},{(int)r.Y})";
+        _mainWindow?.FitPreviewTo(r);
         _mainWindow?.Show();
         _mainWindow?.Activate();
     }
@@ -158,9 +169,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task StartAsync()
     {
-        if (_doc is null || _regions.Current is null) return;
+        if (_strokes is null || _regions.Current is null) return;
 
-        var screenStrokes = StrokeTransform.FitToScreen(_doc.Strokes, _doc.SourceViewBox, _regions.Current.Value);
+        var screenStrokes = StrokeTransform.FitToScreen(_strokes, _sourceViewBox, _regions.Current.Value);
 
         var injector = _injectorFactory.Create(SelectedInjectionMode);
         var ctrl = new PlaybackController(injector, _planner);
@@ -241,6 +252,48 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     private Window? ActiveOwner() => _mainWindow;
+
+    /// <summary>
+    /// Routes global ESC: stops playback if running; otherwise enters a 1-second
+    /// "armed to close" window that turns the X button red, with a second ESC
+    /// in that window quitting the app. Calibration mode is handled separately
+    /// by <see cref="CalibrateAsync"/>.
+    /// </summary>
+    private void OnEscapeFromHotkey()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(HandleEscapeOnUi);
+    }
+
+    private async void HandleEscapeOnUi()
+    {
+        if (_inCalibration) return;
+
+        if (_activePlayback is not null)
+        {
+            _activePlayback.RequestStop();
+            return;
+        }
+
+        if (IsCloseArmed)
+        {
+            Shutdown();
+            return;
+        }
+
+        IsCloseArmed = true;
+        _disarmCts?.Cancel();
+        _disarmCts = new CancellationTokenSource();
+        var token = _disarmCts.Token;
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
+            IsCloseArmed = false;
+        }
+        catch (OperationCanceledException)
+        {
+            // Re-armed or shutdown — either way, no further action needed here.
+        }
+    }
 
     private static void Shutdown()
     {

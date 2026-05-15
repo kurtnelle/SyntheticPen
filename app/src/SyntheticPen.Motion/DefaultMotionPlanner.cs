@@ -22,6 +22,7 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
             ct.ThrowIfCancellationRequested();
 
             var stroke = screenStrokes[sIdx].Points;
+            var press = screenStrokes[sIdx].Pressures;
             if (stroke.Count < 2) continue;
 
             // Travel point at the start of every stroke after the first
@@ -30,7 +31,7 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
                 var prevEnd = screenStrokes[sIdx - 1].Points[^1];
                 double travelDist = Distance(prevEnd, stroke[0]);
                 offset += TimeSpan.FromSeconds(travelDist / travelVelocity);
-                yield return new TimedPoint(stroke[0], offset, PenDown: false);
+                yield return new TimedPoint(stroke[0], offset, PenDown: false, Pressure: 0f);
             }
 
             // Build the arc-length table and a curvature-aware time table.
@@ -62,8 +63,16 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
             {
                 ct.ThrowIfCancellationRequested();
                 double t = (double)i / (N - 1) * T;
-                var pt = PointAtTime(stroke, cumTime, t);
-                yield return new TimedPoint(pt, strokeStart + TimeSpan.FromSeconds(t), PenDown: true);
+                var (lo, hi, f) = SegmentAtTime(cumTime, t);
+                var pt = new PointF(
+                    stroke[lo].X + (stroke[hi].X - stroke[lo].X) * f,
+                    stroke[lo].Y + (stroke[hi].Y - stroke[lo].Y) * f);
+                // Interpolate pressure on the same segment/fraction the point
+                // came from, so width tracks the extracted stroke radius.
+                float pr = press is null
+                    ? 1f
+                    : (float)(press[lo] + (press[hi] - press[lo]) * f);
+                yield return new TimedPoint(pt, strokeStart + TimeSpan.FromSeconds(t), PenDown: true, Pressure: pr);
             }
 
             offset = strokeStart + TimeSpan.FromSeconds(T);
@@ -146,11 +155,17 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
         return Math.Clamp(scale, opts.MinSpeedFraction, 1.0);
     }
 
-    private static PointF PointAtTime(IReadOnlyList<PointF> pts, double[] cumTime, double t)
+    /// <summary>
+    /// Locate time <paramref name="t"/> on the cumulative-time table: returns
+    /// the bracketing vertex indices and the [0,1] fraction between them, so
+    /// position AND pressure can be interpolated identically.
+    /// </summary>
+    private static (int Lo, int Hi, double F) SegmentAtTime(double[] cumTime, double t)
     {
-        if (t <= 0) return pts[0];
-        if (t >= cumTime[^1]) return pts[^1];
-        int lo = 0, hi = cumTime.Length - 1;
+        int last = cumTime.Length - 1;
+        if (t <= 0) return (0, 0, 0.0);
+        if (t >= cumTime[last]) return (last, last, 0.0);
+        int lo = 0, hi = last;
         while (lo < hi - 1)
         {
             int mid = (lo + hi) / 2;
@@ -158,8 +173,6 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
         }
         double dt = cumTime[hi] - cumTime[lo];
         double f = dt < 1e-9 ? 0 : (t - cumTime[lo]) / dt;
-        return new PointF(
-            pts[lo].X + (pts[hi].X - pts[lo].X) * f,
-            pts[lo].Y + (pts[hi].Y - pts[lo].Y) * f);
+        return (lo, hi, f);
     }
 }

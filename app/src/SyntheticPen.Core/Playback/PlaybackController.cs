@@ -85,6 +85,10 @@ public sealed class PlaybackController : IPlaybackController
             var delay = due - DateTime.UtcNow;
             if (delay > TimeSpan.Zero) await Task.Delay(delay, ct);
 
+            // Apply this sample's pressure before any injection below so the
+            // synthetic pointer renders width that tracks the extracted stroke.
+            _injector.Pressure = p.Pressure;
+
             if (p.PenDown && !penDown)
             {
                 // Move to the stroke's first point FIRST, then put the pen down at that
