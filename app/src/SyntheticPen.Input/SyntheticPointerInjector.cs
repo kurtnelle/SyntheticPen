@@ -1,3 +1,4 @@
+using SyntheticPen.Core;
 using SyntheticPen.Core.Models;
 using SyntheticPen.Core.Playback;
 using SyntheticPen.Input.Win32;
@@ -18,6 +19,13 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
     // InjectSyntheticPointerInput reject the event.
     private bool _needsNew = true;
 
+    // Virtual-desktop bounds, cached for the injector's lifetime (one per
+    // playback). InjectSyntheticPointerInput rejects the whole event with
+    // ERROR_INVALID_PARAMETER for any coordinate outside the inclusive pixel
+    // range, and FitToScreen can legitimately land the far edge of the fitted
+    // content exactly on origin+size (one pixel past the last valid index).
+    private readonly int _vx, _vy, _vw, _vh;
+
     /// <summary>Pen pressure in [0,1]; mapped to the Win32 0..1024 range while
     /// in contact. Clamped to ≥1 in contact so a 0 reading can't be mistaken
     /// for "no contact" by the target.</summary>
@@ -29,6 +37,11 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
         _device = CreateSyntheticPointerDevice((uint)POINTER_INPUT_TYPE_PEN, 1, 1);
         if (_device == IntPtr.Zero)
             throw new InjectionBlockedException("CreateSyntheticPointerDevice failed (Windows 10 1809+ required)");
+
+        _vx = SendInputNative.GetSystemMetrics(SendInputNative.SM_XVIRTUALSCREEN);
+        _vy = SendInputNative.GetSystemMetrics(SendInputNative.SM_YVIRTUALSCREEN);
+        _vw = SendInputNative.GetSystemMetrics(SendInputNative.SM_CXVIRTUALSCREEN);
+        _vh = SendInputNative.GetSystemMetrics(SendInputNative.SM_CYVIRTUALSCREEN);
     }
 
     public Task MoveAsync(PointF p, CancellationToken ct = default) => Inject(p, drag: true, down: false, up: false);
@@ -56,6 +69,13 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
         else if (up) flags |= POINTER_FLAGS.UP;
         else if (drag) flags |= POINTER_FLAGS.UPDATE;
 
+        // Clamp into the inclusive valid pixel range. A coordinate equal to
+        // origin+size (FitToScreen's far edge can land exactly there) is one
+        // pixel out of range and makes InjectSyntheticPointerInput fail the
+        // whole event with ERROR_INVALID_PARAMETER.
+        var (px, py) = VirtualScreen.ClampPixel(
+            (int)Math.Round(p.X), (int)Math.Round(p.Y), _vx, _vy, _vw, _vh);
+
         var info = new POINTER_TYPE_INFO
         {
             type = POINTER_INPUT_TYPE_PEN,
@@ -66,7 +86,7 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
                     pointerType = POINTER_INPUT_TYPE_PEN,
                     pointerId = 1,
                     pointerFlags = flags,
-                    ptPixelLocation = new POINT { X = (int)Math.Round(p.X), Y = (int)Math.Round(p.Y) }
+                    ptPixelLocation = new POINT { X = px, Y = py }
                 },
                 penMask = POINTER_PEN_MASK.PRESSURE,
                 // Win32 pen pressure is 0..1024. While in contact, map the
