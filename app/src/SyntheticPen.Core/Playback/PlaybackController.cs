@@ -79,6 +79,29 @@ public sealed class PlaybackController : IPlaybackController
         bool penDown = false;
         bool needsPrime = opts.PrimeTapHold > TimeSpan.Zero;
 
+        // Injection pacing state. The planner can place samples microseconds
+        // apart and the catch-up path below would otherwise fire them with no
+        // gap, overrunning the synthetic-pointer pipeline. Paced() enforces a
+        // floor (larger around contact transitions) using a monotonic clock.
+        var paceClock = System.Diagnostics.Stopwatch.StartNew();
+        double lastInjectMs = double.NegativeInfinity;
+        bool prevWasContact = false;
+        double minInterval = opts.MinEventInterval.TotalMilliseconds;
+        double contactSettle = opts.ContactSettle.TotalMilliseconds;
+
+        async Task Paced(Func<Task> inject, bool contactTransition)
+        {
+            double need = (contactTransition || prevWasContact) ? contactSettle : minInterval;
+            if (need > 0)
+            {
+                double deficit = need - (paceClock.Elapsed.TotalMilliseconds - lastInjectMs);
+                if (deficit > 0) await Task.Delay(TimeSpan.FromMilliseconds(deficit), ct);
+            }
+            await inject();
+            lastInjectMs = paceClock.Elapsed.TotalMilliseconds;
+            prevWasContact = contactTransition;
+        }
+
         await foreach (var p in plan.WithCancellation(ct))
         {
             var due = start + p.Offset;
@@ -96,36 +119,36 @@ public sealed class PlaybackController : IPlaybackController
                 // calling PenDownAsync before the move issues a down at the previous cursor
                 // (or worse, the injector's default (0,0)) and target apps render a phantom
                 // stroke from there.
-                await _injector.MoveAsync(p.Point, ct);
+                await Paced(() => _injector.MoveAsync(p.Point, ct), contactTransition: false);
 
                 if (needsPrime)
                 {
                     needsPrime = false;
-                    await _injector.PenDownAsync(ct);
+                    await Paced(() => _injector.PenDownAsync(ct), contactTransition: true);
                     await Task.Delay(opts.PrimeTapHold, ct);
-                    await _injector.PenUpAsync(ct);
+                    await Paced(() => _injector.PenUpAsync(ct), contactTransition: true);
                     if (opts.PrimeTapSettle > TimeSpan.Zero)
                         await Task.Delay(opts.PrimeTapSettle, ct);
-                    await _injector.MoveAsync(p.Point, ct);
+                    await Paced(() => _injector.MoveAsync(p.Point, ct), contactTransition: false);
                 }
 
-                await _injector.PenDownAsync(ct);
+                await Paced(() => _injector.PenDownAsync(ct), contactTransition: true);
                 penDown = true;
             }
             else if (!p.PenDown && penDown)
             {
                 // Lift the pen before traveling so we don't smear ink across the air gap.
-                await _injector.PenUpAsync(ct);
+                await Paced(() => _injector.PenUpAsync(ct), contactTransition: true);
                 penDown = false;
-                await _injector.MoveAsync(p.Point, ct);
+                await Paced(() => _injector.MoveAsync(p.Point, ct), contactTransition: false);
             }
             else
             {
-                await _injector.MoveAsync(p.Point, ct);
+                await Paced(() => _injector.MoveAsync(p.Point, ct), contactTransition: false);
             }
         }
 
-        if (penDown) await _injector.PenUpAsync(ct);
+        if (penDown) await Paced(() => _injector.PenUpAsync(ct), contactTransition: true);
     }
 
     private async Task SafePenUp()

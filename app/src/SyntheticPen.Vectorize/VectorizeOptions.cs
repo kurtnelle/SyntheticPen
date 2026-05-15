@@ -36,4 +36,22 @@ public sealed record VectorizeOptions(
     // local stroke radius. A real stroke is longer than it is wide; a wobble
     // isn't. Only endpoint→junction branches are touched, so isolated marks
     // (i-dots, the period in "K.") are preserved. 0 disables.
-    double SpurWidthFactor = 1.6);
+    double SpurWidthFactor = 1.6,
+
+    // Micro-stroke stitching. Disconnected fragments whose endpoints are
+    // within this multiple of the local stroke radius are joined into one
+    // continuous stroke (a human pen wouldn't lift for a sub-mm gap), as long
+    // as the join doesn't kink past MaxStitchAngleDeg. 0 disables stitching.
+    double StitchGapWidthFactor = 2.5,
+    double MaxStitchAngleDeg = 75.0,
+
+    // After stitching, a remaining stroke shorter than this multiple of the
+    // local stroke radius is a drop candidate — too short to be a hand-drawn
+    // line. 0 disables dropping entirely.
+    double MinStrokeLenWidthFactor = 2.0,
+
+    // ...but only drop such a short stroke if another stroke lies within this
+    // multiple of the stroke radius (it's adjacent skeleton clutter). A short
+    // stroke that is an isolated island — farther than this from everything —
+    // is a deliberate mark (a period, an i-dot, an accent) and is kept.
+    double IslandGapWidthFactor = 6.0);

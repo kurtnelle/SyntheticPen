@@ -138,6 +138,102 @@ public class SpurPrunerTests
     }
 }
 
+public class StrokeStitcherTests
+{
+    // 64x64 uniform-radius field; medianR = 5 -> maxGap=2.5*5=12.5, minLen=2*5=10.
+    private static float[] Edt(int w, int h, float r)
+    {
+        var e = new float[w * h];
+        Array.Fill(e, r);
+        return e;
+    }
+
+    private static List<(int X, int Y)> Seg(int x0, int y0, int x1, int y1, int step = 2)
+    {
+        var p = new List<(int, int)>();
+        int dx = Math.Sign(x1 - x0), dy = Math.Sign(y1 - y0);
+        int x = x0, y = y0;
+        while (true)
+        {
+            p.Add((x, y));
+            if (x == x1 && y == y1) break;
+            x += dx * step * (dx != 0 ? 1 : 0);
+            y += dy * step * (dy != 0 ? 1 : 0);
+            if (Math.Abs(x - x0) > Math.Abs(x1 - x0)) x = x1;
+            if (Math.Abs(y - y0) > Math.Abs(y1 - y0)) y = y1;
+        }
+        return p;
+    }
+
+    [Fact]
+    public void Collinear_fragments_within_gap_are_joined()
+    {
+        var a = Seg(0, 0, 10, 0);
+        var b = Seg(14, 0, 30, 0); // 4px gap from a's end, same heading
+        var res = StrokeStitcher.Stitch(new() { a, b }, Edt(64, 64, 5f), 64, 64,
+            gapWidthFactor: 2.5, maxAngleDeg: 75, minLenWidthFactor: 2.0,
+            islandGapWidthFactor: 6.0);
+
+        res.Should().HaveCount(1);
+        res[0].Should().Contain((0, 0)).And.Contain((30, 0));
+    }
+
+    [Fact]
+    public void Sharp_corner_within_gap_is_not_joined()
+    {
+        var a = Seg(0, 0, 10, 0);   // heading +x
+        var b = Seg(12, 0, 12, 16); // 2px gap but heading +y (~90deg)
+        var res = StrokeStitcher.Stitch(new() { a, b }, Edt(64, 64, 5f), 64, 64,
+            gapWidthFactor: 2.5, maxAngleDeg: 75, minLenWidthFactor: 0, // drop disabled
+            islandGapWidthFactor: 6.0);
+
+        res.Should().HaveCount(2); // angle gate prevents the kink
+    }
+
+    [Fact]
+    public void Short_stroke_adjacent_to_ink_is_dropped()
+    {
+        // medianR=5, IslandGapWidthFactor=6 -> islandGap=30. The speck sits
+        // 8px from the long stroke (< 30) so it's adjacent clutter, not an
+        // island, and is short (< minLen 10) -> dropped.
+        var longStroke = Seg(0, 0, 40, 0);
+        var speck = Seg(10, 8, 13, 8);
+        var res = StrokeStitcher.Stitch(new() { longStroke, speck }, Edt(256, 256, 5f), 256, 256,
+            gapWidthFactor: 2.5, maxAngleDeg: 75, minLenWidthFactor: 2.0,
+            islandGapWidthFactor: 6.0);
+
+        res.Should().HaveCount(1);
+        res[0].Should().Contain((40, 0));
+    }
+
+    [Fact]
+    public void Isolated_island_speck_is_kept_even_though_it_is_short()
+    {
+        // Same short speck, but far from any other stroke (> islandGap 30):
+        // a deliberate mark (period / i-dot) — must survive.
+        var longStroke = Seg(0, 0, 40, 0);
+        var island = Seg(200, 200, 203, 200);
+        var res = StrokeStitcher.Stitch(new() { longStroke, island }, Edt(256, 256, 5f), 256, 256,
+            gapWidthFactor: 2.5, maxAngleDeg: 75, minLenWidthFactor: 2.0,
+            islandGapWidthFactor: 6.0);
+
+        res.Should().HaveCount(2);
+        res.Any(s => s.Contains((200, 200))).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Factors_zero_is_a_passthrough()
+    {
+        var a = Seg(0, 0, 4, 0); // tiny, would be dropped if filtering on
+        var b = Seg(6, 0, 10, 0);
+        var res = StrokeStitcher.Stitch(new() { a, b }, Edt(32, 32, 5f), 32, 32,
+            gapWidthFactor: 0, maxAngleDeg: 75, minLenWidthFactor: 0,
+            islandGapWidthFactor: 6.0);
+
+        res.Should().HaveCount(2); // nothing merged, nothing dropped
+    }
+}
+
 public class CenterlineExtractorEndToEndTests
 {
     private static Stream Svg(string body, double w = 200, double h = 100)

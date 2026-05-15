@@ -187,7 +187,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
                     Mode: SelectedInjectionMode,
                     Countdown: TimeSpan.FromSeconds(3),
                     PrimeTapHold: TimeSpan.FromMilliseconds(40),
-                    PrimeTapSettle: TimeSpan.FromMilliseconds(60)));
+                    PrimeTapSettle: TimeSpan.FromMilliseconds(60),
+                    // Pace injection so catch-up bursts can't overrun the
+                    // Windows synthetic-pointer pipeline (root cause of the
+                    // ERROR_INVALID_PARAMETER aborts).
+                    MinEventInterval: TimeSpan.FromMilliseconds(2),
+                    ContactSettle: TimeSpan.FromMilliseconds(8)));
         }
         finally
         {

@@ -20,6 +20,12 @@ public sealed class CenterlineExtractor
         var skeleton = ZhangSuenThinning.Thin(mask);
         skeleton = SpurPruner.Prune(skeleton, edt, opts.SpurWidthFactor);
         var pixelStrokes = SkeletonTracer.Trace(skeleton, opts.MinStrokePixels);
+        // Join contiguous fragments and drop sub-pen-width specks so the
+        // replay reads as one human pen path, not hundreds of mm-scale lifts.
+        pixelStrokes = StrokeStitcher.Stitch(
+            pixelStrokes, edt, mask.Width, mask.Height,
+            opts.StitchGapWidthFactor, opts.MaxStitchAngleDeg,
+            opts.MinStrokeLenWidthFactor, opts.IslandGapWidthFactor);
 
         // Resample spacing is given in SVG units; convert to raster pixels.
         double spacingPx = Math.Max(1.0, opts.ResampleSpacing * mask.Scale);

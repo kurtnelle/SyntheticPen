@@ -44,6 +44,16 @@ public class PlaybackControllerTests
         public Task PenUpAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
+    private sealed class TimedInjector : ICursorInjector
+    {
+        private readonly System.Diagnostics.Stopwatch _sw = System.Diagnostics.Stopwatch.StartNew();
+        public float Pressure { get; set; } = 1f;
+        public List<(char Kind, double Ms)> Events { get; } = new();
+        public Task MoveAsync(PointF p, CancellationToken ct = default) { Events.Add(('M', _sw.Elapsed.TotalMilliseconds)); return Task.CompletedTask; }
+        public Task PenDownAsync(CancellationToken ct = default) { Events.Add(('D', _sw.Elapsed.TotalMilliseconds)); return Task.CompletedTask; }
+        public Task PenUpAsync(CancellationToken ct = default) { Events.Add(('U', _sw.Elapsed.TotalMilliseconds)); return Task.CompletedTask; }
+    }
+
     [Fact]
     public async Task PlayAsync_moves_to_first_point_then_DOWN_then_moves_then_UP_for_single_stroke()
     {
@@ -122,6 +132,49 @@ public class PlaybackControllerTests
         injector.MovePressures.Max().Should().BeGreaterThan(0.9f);
         // First sample lighter than the last.
         injector.MovePressures.First().Should().BeLessThan(injector.MovePressures.Last());
+    }
+
+    [Fact]
+    public async Task Catch_up_bursts_are_paced_so_contact_transitions_are_isolated()
+    {
+        // Many tiny strokes at extreme speed: the planner schedules samples
+        // ~0ms apart so the controller is always behind real time and, without
+        // pacing, would fire DOWN/UP microseconds apart (the root cause of the
+        // synthetic-pointer ERROR_INVALID_PARAMETER). With pacing every
+        // contact transition must be isolated by >= ContactSettle.
+        var strokes = Enumerable.Range(0, 12)
+            .Select(i => S((i * 10, 0), (i * 10 + 3, 1), (i * 10 + 5, 0)))
+            .ToArray();
+
+        var injector = new TimedInjector();
+        var ctrl = new PlaybackController(injector, new DefaultMotionPlanner());
+
+        var contactSettle = TimeSpan.FromMilliseconds(20);
+        await ctrl.PlayAsync(strokes, new PlaybackOptions(
+            SampleHz: 1000, SpeedMultiplier: 1000, Countdown: TimeSpan.Zero,
+            MinEventInterval: TimeSpan.FromMilliseconds(5),
+            ContactSettle: contactSettle));
+
+        var ev = injector.Events;
+        ev.Should().NotBeEmpty();
+        ev.Count(e => e.Kind == 'D').Should().Be(12); // one DOWN per stroke
+        ev.Count(e => e.Kind == 'U').Should().BeGreaterThanOrEqualTo(12); // per-stroke + closing
+
+        // Mid-playback, any event adjacent to a contact transition must be
+        // >= ContactSettle apart (generous tolerance for OS timer coarseness,
+        // but proves the zero-gap burst is gone — unpaced these were ~0.01ms).
+        // The terminal tail after the last DOWN is excluded: the closing/
+        // safety pen-up (PlayAsync's SafePenUp) is intentionally immediate —
+        // releasing contact must never be delayed.
+        int lastDown = ev.FindLastIndex(e => e.Kind == 'D');
+        double floorMs = contactSettle.TotalMilliseconds * 0.5;
+        for (int i = 1; i <= lastDown; i++)
+        {
+            bool contactAdjacent = ev[i].Kind is 'D' or 'U' || ev[i - 1].Kind is 'D' or 'U';
+            if (contactAdjacent)
+                (ev[i].Ms - ev[i - 1].Ms).Should()
+                    .BeGreaterThan(floorMs, $"contact transition at index {i} must be paced");
+        }
     }
 
     [Fact]

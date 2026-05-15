@@ -98,16 +98,121 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
             }
         };
 
+        Diag.Record((uint)flags, _contact, (int)Math.Round(p.X), (int)Math.Round(p.Y), px, py);
+
         if (!InjectSyntheticPointerInput(_device, ref info, 1))
         {
             var err = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            // MONITOR_DEFAULTTONULL (0): null => the point is inside the
+            // virtual bounding rect but on NO physical monitor (multi-monitor
+            // dead-zone), which InjectSyntheticPointerInput rejects.
+            var hMon = MonitorFromPoint(new POINT { X = px, Y = py }, 0);
+            Diag.Dump(new
+            {
+                win32err = err,
+                flags = $"0x{(uint)flags:X}",
+                contact = _contact,
+                raw = new { x = (int)Math.Round(p.X), y = (int)Math.Round(p.Y) },
+                injected = new { x = px, y = py },
+                vbounds = new { x = _vx, y = _vy, w = _vw, h = _vh },
+                maxValid = new { x = _vx + _vw - 1, y = _vy + _vh - 1 },
+                onMonitor = hMon != IntPtr.Zero,
+                winUnderPt = ClassAt(px, py),
+                foreground = ForegroundClass()
+            });
             throw new InjectionBlockedException(
-                $"InjectSyntheticPointerInput failed (Win32 err {err}, flags=0x{(uint)flags:X}, contact={_contact}, pt=({p.X:F0},{p.Y:F0}))");
+                $"InjectSyntheticPointerInput failed (Win32 err {err}, flags=0x{(uint)flags:X}, " +
+                $"contact={_contact}, raw=({p.X:F0},{p.Y:F0}), injected=({px},{py}), " +
+                $"vbounds=({_vx},{_vy},{_vw},{_vh}) maxValid=({_vx + _vw - 1},{_vy + _vh - 1}), " +
+                $"onMonitor={(hMon != IntPtr.Zero)}, " +
+                $"winUnderPt='{ClassAt(px, py)}', foreground='{ForegroundClass()}')");
         }
 
         if (up) _contact = false;
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Diagnostic ring buffer of the last N injected pointer events with
+    /// monotonic timestamps. On the first injection failure it writes a JSON
+    /// dump (failure context + the recent timeline with per-event gaps) next
+    /// to the executable, so inter-stroke timing can be inspected without
+    /// copy-pasting log lines. One-shot per process.
+    /// </summary>
+    private static class Diag
+    {
+        private const int Cap = 400;
+        private static readonly object Gate = new();
+        private static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+        private static readonly System.Collections.Generic.Queue<object> Events = new();
+        private static bool _dumped;
+
+        public static void Record(uint flags, bool contact, int rawX, int rawY, int px, int py)
+        {
+            lock (Gate)
+            {
+                Events.Enqueue(new
+                {
+                    tMs = Math.Round(Clock.Elapsed.TotalMilliseconds, 2),
+                    flags = $"0x{flags:X}",
+                    kind = (flags & 0x10000) != 0 ? "DOWN"
+                         : (flags & 0x40000) != 0 ? "UP"
+                         : (flags & 0x20000) != 0 ? "UPDATE" : "?",
+                    contact,
+                    raw = new { x = rawX, y = rawY },
+                    injected = new { x = px, y = py }
+                });
+                while (Events.Count > Cap) Events.Dequeue();
+            }
+        }
+
+        public static void Dump(object failure)
+        {
+            lock (Gate)
+            {
+                if (_dumped) return;
+                _dumped = true;
+                try
+                {
+                    var payload = new
+                    {
+                        utc = DateTime.UtcNow.ToString("o"),
+                        failure,
+                        recentCount = Events.Count,
+                        recent = Events.ToArray()
+                    };
+                    var json = System.Text.Json.JsonSerializer.Serialize(
+                        payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    var path = System.IO.Path.Combine(AppContext.BaseDirectory, "syntheticpen-diag-latest.json");
+                    System.IO.File.WriteAllText(path, json);
+                }
+                catch { /* diagnostics must never mask the original failure */ }
+            }
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(POINT pt);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+    private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder buf, int max);
+
+    private static string ClassName(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return "<null>";
+        var sb = new System.Text.StringBuilder(256);
+        GetClassName(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    private static string ClassAt(int x, int y) => ClassName(WindowFromPoint(new POINT { X = x, Y = y }));
+    private static string ForegroundClass() => ClassName(GetForegroundWindow());
 
     public void Dispose()
     {
