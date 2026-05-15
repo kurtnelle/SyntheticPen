@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="SyntheticPen.App.Views.AboutDialog"
         Title="About SyntheticPen"
-        Width="480" Height="320"
+        Width="480" Height="380"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="#0A0A0A">
@@ -12,8 +12,22 @@
                    Foreground="#A6A6A6" FontSize="14"/>
         <Separator/>
         <TextBlock Text="Version 0.1.0 — Phase 1" Foreground="#A6A6A6" FontSize="12"/>
-        <TextBlock Text="github.com/kurtnelle/SyntheticPen"
-                   Foreground="#6BE6FF" FontSize="12"/>
+        <StackPanel Spacing="2">
+            <HyperlinkButton Content="syntheticpen.com" NavigateUri="https://syntheticpen.com/"
+                             Foreground="#6BE6FF" FontSize="12" Padding="0"
+                             HorizontalAlignment="Left"/>
+            <HyperlinkButton Content="github.com/kurtnelle/SyntheticPen"
+                             NavigateUri="https://github.com/kurtnelle/SyntheticPen"
+                             Foreground="#6BE6FF" FontSize="12" Padding="0"
+                             HorizontalAlignment="Left"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Need an SVG? Convert text to SVG at"
+                       Foreground="#A6A6A6" FontSize="12" VerticalAlignment="Center"/>
+            <HyperlinkButton Content="texttosvg.app" NavigateUri="https://texttosvg.app/"
+                             Foreground="#6BE6FF" FontSize="12" Padding="0"
+                             VerticalAlignment="Center"/>
+        </StackPanel>
         <Separator/>
         <CheckBox Name="AutostartCheck"
                   Content="Launch with Win+Shift+X (run a tiny helper at login)"

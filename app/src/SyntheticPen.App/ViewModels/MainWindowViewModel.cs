@@ -237,6 +237,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                         (int)(r.Y + r.H / 2.0));
                 }
                 _indicator ??= new PlottingIndicator();
+                if (_regions.Current is { } reg) _indicator.PositionAbove(reg);
                 _indicator.Show();
             }
             else // Idle, Cancelling, end
