@@ -6,7 +6,7 @@
         x:DataType="vm:MainWindowViewModel"
         Title="SyntheticPen"
         Width="800" Height="640"
-        MinWidth="500" MinHeight="240"
+        MinWidth="320" MinHeight="150"
         SystemDecorations="None"
         Background="Transparent"
         TransparencyLevelHint="Transparent"
