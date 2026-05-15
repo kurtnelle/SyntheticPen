@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
-using Microsoft.Extensions.DependencyInjection;
-using SyntheticPen.App.ViewModels;
+using SyntheticPen.App.Views;
+using ModelRect = SyntheticPen.Core.Models.Rect;
 
 namespace SyntheticPen.App;
 
@@ -15,22 +15,40 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // No persistent main window. Calibration is the first user-facing surface;
-            // RegionPreview + RegionControls appear once a region is committed.
-            // The VM calls desktop.Shutdown() on close-button or initial-Esc.
+            // Stay alive until we explicitly shut down: the MainWindow isn't created
+            // until the user finishes the initial calibration, so the lifetime can't
+            // be tied to "main window closes."
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
 
-            var vm = Program.Services.GetRequiredService<MainWindowViewModel>();
-
-            // Kick off the initial calibrate after the framework has finished initializing.
             Dispatcher.UIThread.Post(async () =>
             {
-                // Brief pause so the bundled demo SVG has a chance to parse/render before
-                // the calibration overlay grabs the screen.
+                // Brief pause so the bundled demo SVG has time to parse/render
+                // before the calibration overlay grabs the screen.
                 await System.Threading.Tasks.Task.Delay(150);
-                await vm.RunInitialFlowAsync();
+
+                var rect = await AwaitCalibrationAsync();
+                if (rect is null)
+                {
+                    desktop.Shutdown();
+                    return;
+                }
+
+                var window = new MainWindow();
+                window.FitPreviewTo(rect.Value);
+                window.Closed += (_, _) => desktop.Shutdown();
+                window.Show();
             });
         }
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static System.Threading.Tasks.Task<ModelRect?> AwaitCalibrationAsync()
+    {
+        var overlay = new CalibrationOverlay();
+        var tcs = new System.Threading.Tasks.TaskCompletionSource<ModelRect?>();
+        overlay.Closed += (_, _) => tcs.TrySetResult(overlay.SelectedRect);
+        overlay.Show();
+        overlay.Activate();
+        return tcs.Task;
     }
 }

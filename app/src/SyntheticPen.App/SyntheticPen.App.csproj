@@ -12,6 +12,8 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Projektanker.Icons.Avalonia" />
+    <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" />

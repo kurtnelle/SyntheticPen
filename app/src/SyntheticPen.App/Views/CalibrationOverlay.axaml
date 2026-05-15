@@ -8,8 +8,7 @@
         Background="Transparent"
         TransparencyLevelHint="Transparent"
         CanResize="False"
-        UseLayoutRounding="True"
-        Cursor="Cross">
+        UseLayoutRounding="True">
     <Canvas Name="Root" Background="#80000000">
         <Rectangle Name="SelectionRect"
                    Stroke="#4DA3FF" StrokeThickness="1"

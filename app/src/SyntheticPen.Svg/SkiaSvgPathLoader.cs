@@ -35,16 +35,26 @@ public sealed class SkiaSvgPathLoader : ISvgPathLoader
             if (root == null || !string.Equals(root.LocalName, "svg", StringComparison.OrdinalIgnoreCase))
                 throw new SvgParseException("Document root is not <svg>.");
 
-            var viewBox = ParseViewBox(root);
+            var declared = ParseViewBox(root);
 
             var strokes = new List<Stroke>();
             CollectStrokes(root, SKMatrix.CreateIdentity(), strokes, opts.Tolerance, ct);
 
-            // Fallback viewBox = bounding box of all points (used when SVG omits viewBox)
-            if (viewBox is null)
-                viewBox = StrokesBoundingBox(strokes) ?? new Rect(0, 0, 100, 100);
+            // Source viewBox for replay = union of declared viewBox and actual stroke
+            // bounds. This preserves intentional padding when the SVG author set a
+            // viewBox, but still includes content that extends past it (e.g. <text>
+            // glyphs whose advance/ascent exceed the declared crop region — common
+            // when authoring tools emit a viewBox tighter than the typographic box).
+            var content = StrokesBoundingBox(strokes);
+            Rect viewBox = (declared, content) switch
+            {
+                ({ } d, { } c) => UnionRect(d, c),
+                ({ } d, null)  => d,
+                (null, { } c)  => c,
+                _              => new Rect(0, 0, 100, 100)
+            };
 
-            return new SvgDocument(strokes, viewBox.Value);
+            return new SvgDocument(strokes, viewBox);
         }, ct);
     }
 
@@ -83,6 +93,9 @@ public sealed class SkiaSvgPathLoader : ISvgPathLoader
                 case "polyline":
                 case "polygon":
                     AddPoly(child, localTransform, strokes, closed: name == "polygon");
+                    break;
+                case "text":
+                    AddTextStrokes(child, localTransform, strokes, tolerance);
                     break;
             }
         }
@@ -146,6 +159,11 @@ public sealed class SkiaSvgPathLoader : ISvgPathLoader
         catch (Exception ex) { throw new SvgParseException($"Failed to parse path d='{d}': {ex.Message}", ex); }
         if (skPath is null) throw new SvgParseException($"Failed to parse path d='{d}'");
 
+        AddSkPathStrokes(skPath, transform, strokes, tolerance);
+    }
+
+    private static void AddSkPathStrokes(SKPath skPath, SKMatrix transform, List<Stroke> strokes, double tolerance)
+    {
         var stroke = new List<PointF>();
         using var iter = skPath.CreateIterator(forceClose: false);
         var pts = new SKPoint[4];
@@ -221,6 +239,110 @@ public sealed class SkiaSvgPathLoader : ISvgPathLoader
         if (stroke.Count > 0) strokes.Add(new Stroke(stroke.ToArray()));
     }
 
+    private static void AddTextStrokes(XmlElement el, SKMatrix transform, List<Stroke> strokes, double tolerance)
+    {
+        var text = ExtractText(el);
+        if (string.IsNullOrEmpty(text)) return;
+
+        double x = ParseAttr(el, "x");
+        double y = ParseAttr(el, "y");
+
+        var styleAttr = el.GetAttribute("style");
+        var familyList = GetStyleValue(styleAttr, "font-family") ?? el.GetAttribute("font-family");
+        var sizeStr = GetStyleValue(styleAttr, "font-size") ?? el.GetAttribute("font-size");
+        float fontSize = ParseFontSize(sizeStr, defaultSize: 16f);
+
+        using var typeface = ResolveTypeface(familyList) ?? SKTypeface.FromFamilyName(null);
+        if (typeface is null) return;
+        using var font = new SKFont(typeface, fontSize);
+
+        var glyphs = new ushort[text.Length];
+        font.GetGlyphs(text, glyphs);
+        int glyphCount = glyphs.Length;
+        var widths = new float[glyphCount];
+        font.GetGlyphWidths(glyphs.AsSpan(), widths, Span<SKRect>.Empty, null);
+
+        using var combined = new SKPath();
+        float penX = (float)x;
+        float penY = (float)y;
+        for (int i = 0; i < glyphCount; i++)
+        {
+            using var gp = font.GetGlyphPath(glyphs[i]);
+            if (gp is not null && !gp.IsEmpty)
+                combined.AddPath(gp, penX, penY, SKPathAddMode.Append);
+            penX += widths[i];
+        }
+
+        if (!combined.IsEmpty)
+            AddSkPathStrokes(combined, transform, strokes, tolerance);
+    }
+
+    /// <summary>Concatenate inner text including text inside any <tspan> children.</summary>
+    private static string ExtractText(XmlElement el)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (XmlNode n in el.ChildNodes)
+        {
+            if (n is XmlText t) sb.Append(t.Value);
+            else if (n is XmlElement e && e.LocalName.Equals("tspan", StringComparison.OrdinalIgnoreCase))
+                sb.Append(ExtractText(e));
+        }
+        return sb.ToString();
+    }
+
+    private static string? GetStyleValue(string style, string key)
+    {
+        if (string.IsNullOrWhiteSpace(style)) return null;
+        foreach (var part in style.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int colon = part.IndexOf(':');
+            if (colon < 0) continue;
+            var k = part.Substring(0, colon).Trim();
+            if (string.Equals(k, key, StringComparison.OrdinalIgnoreCase))
+                return part.Substring(colon + 1).Trim();
+        }
+        return null;
+    }
+
+    /// <summary>Walk a comma-separated font-family list and return the first installed match.
+    /// <see cref="SKTypeface.FromFamilyName"/> silently returns the default font on a miss,
+    /// so we verify the returned typeface's actual FamilyName before accepting it.
+    /// Generic CSS keywords (cursive/serif/sans-serif/monospace) are skipped.</summary>
+    private static SKTypeface? ResolveTypeface(string? familyList)
+    {
+        if (string.IsNullOrWhiteSpace(familyList)) return null;
+        foreach (var raw in familyList.Split(','))
+        {
+            var name = raw.Trim().Trim('\'', '"').Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            if (name.Equals("cursive", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("serif", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("sans-serif", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("monospace", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("fantasy", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var tf = SKTypeface.FromFamilyName(name);
+            if (tf is not null && string.Equals(tf.FamilyName, name, StringComparison.OrdinalIgnoreCase))
+                return tf;
+            tf?.Dispose();
+        }
+        return null;
+    }
+
+    /// <summary>Parse '600px' / '12pt' / '14' → float pixels. Treats unitless as px.</summary>
+    private static float ParseFontSize(string? s, float defaultSize)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return defaultSize;
+        s = s.Trim();
+        float mul = 1f;
+        if (s.EndsWith("px", StringComparison.OrdinalIgnoreCase)) s = s[..^2];
+        else if (s.EndsWith("pt", StringComparison.OrdinalIgnoreCase)) { s = s[..^2]; mul = 96f / 72f; }
+        else if (s.EndsWith("em", StringComparison.OrdinalIgnoreCase)) { s = s[..^2]; mul = 16f; }
+        return float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)
+            ? v * mul
+            : defaultSize;
+    }
+
     private static PointF Transform(SKPoint p, SKMatrix m)
     {
         var t = m.MapPoint(p);
@@ -262,7 +384,43 @@ public sealed class SkiaSvgPathLoader : ISvgPathLoader
     }
 
     private static double ParseAttr(XmlElement el, string name)
-        => double.TryParse(el.GetAttribute(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : 0.0;
+        => ParseLength(el.GetAttribute(name));
+
+    /// <summary>Parse an SVG length attribute. Accepts unitless numbers and the
+    /// common CSS units (px, pt, pc, mm, cm, in, em). Unknown/empty → 0.</summary>
+    private static double ParseLength(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return 0.0;
+        s = s.Trim();
+        double mul = 1.0;
+        // strip trailing unit if present
+        if (s.Length >= 2 && char.IsLetter(s[^1]) && char.IsLetter(s[^2]))
+        {
+            var unit = s[^2..].ToLowerInvariant();
+            s = s[..^2];
+            mul = unit switch
+            {
+                "px" => 1.0,
+                "pt" => 96.0 / 72.0,
+                "pc" => 16.0,        // 1 pica = 12pt
+                "mm" => 96.0 / 25.4,
+                "cm" => 96.0 / 2.54,
+                "in" => 96.0,
+                "em" => 16.0,        // assume root font-size of 16px; rare for coords
+                _ => 1.0
+            };
+        }
+        return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v * mul : 0.0;
+    }
+
+    private static Rect UnionRect(Rect a, Rect b)
+    {
+        double minX = Math.Min(a.X, b.X);
+        double minY = Math.Min(a.Y, b.Y);
+        double maxX = Math.Max(a.X + a.W, b.X + b.W);
+        double maxY = Math.Max(a.Y + a.H, b.Y + b.H);
+        return new Rect(minX, minY, maxX - minX, maxY - minY);
+    }
 
     private static Rect? StrokesBoundingBox(IReadOnlyList<Stroke> strokes)
     {

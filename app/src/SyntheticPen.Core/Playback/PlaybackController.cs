@@ -71,6 +71,7 @@ public sealed class PlaybackController : IPlaybackController
 
         var start = DateTime.UtcNow;
         bool penDown = false;
+        bool needsPrime = opts.PrimeTapHold > TimeSpan.Zero;
 
         await foreach (var p in plan.WithCancellation(ct))
         {
@@ -86,6 +87,18 @@ public sealed class PlaybackController : IPlaybackController
                 // (or worse, the injector's default (0,0)) and target apps render a phantom
                 // stroke from there.
                 await _injector.MoveAsync(p.Point, ct);
+
+                if (needsPrime)
+                {
+                    needsPrime = false;
+                    await _injector.PenDownAsync(ct);
+                    await Task.Delay(opts.PrimeTapHold, ct);
+                    await _injector.PenUpAsync(ct);
+                    if (opts.PrimeTapSettle > TimeSpan.Zero)
+                        await Task.Delay(opts.PrimeTapSettle, ct);
+                    await _injector.MoveAsync(p.Point, ct);
+                }
+
                 await _injector.PenDownAsync(ct);
                 penDown = true;
             }

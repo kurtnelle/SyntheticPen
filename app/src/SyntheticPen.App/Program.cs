@@ -1,6 +1,8 @@
 using System.Runtime.Versioning;
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
+using Projektanker.Icons.Avalonia;
+using Projektanker.Icons.Avalonia.FontAwesome;
 using Microsoft.Extensions.Hosting;
 using SyntheticPen.App.ViewModels;
 using SyntheticPen.Core.Playback;
@@ -43,10 +45,13 @@ internal static class Program
     }
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    {
+        IconProvider.Current.Register<FontAwesomeIconProvider>();
+        return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+    }
 }
 
 public sealed class InjectorFactory

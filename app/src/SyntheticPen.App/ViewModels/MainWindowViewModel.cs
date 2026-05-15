@@ -29,8 +29,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private SvgDocument? _doc;
     private CountdownOverlay? _countdown;
     private PlottingIndicator? _indicator;
-    private RegionPreview? _regionPreview;
-    private RegionControls? _regionControls;
+    private MainWindow? _mainWindow;
+    // The controller that's actually running a playback. ESC / RequestStop must
+    // hit this one, not the DI singleton (which only exists to expose state at
+    // rest — each playback builds its own controller to pick up the user's
+    // current injection-mode selection).
+    private IPlaybackController? _activePlayback;
+
+    public void AttachMainWindow(MainWindow window) => _mainWindow = window;
 
     public MainWindowViewModel(
         IPlaybackController playback,
@@ -51,7 +57,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         _playback.StateChanged += OnStateChanged;
         _playback.CountdownTick += OnCountdownTick;
-        _hotkeys.EmergencyStopRequested += () => _playback.RequestStop();
+        _hotkeys.EmergencyStopRequested += () => (_activePlayback ?? _playback).RequestStop();
         _regions.Changed += _ => OnPropertyChanged(nameof(HasRegion));
         StateText = _playback.State.ToString();
 
@@ -73,6 +79,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(_doc.Strokes);
+                PreviewSourceWidth = _doc.SourceViewBox.W;
+                PreviewSourceHeight = _doc.SourceViewBox.H;
             });
         }
         catch
@@ -88,31 +96,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _svgFileLabel = "(no file)";
     [ObservableProperty] private string _targetRegionLabel = "(not set)";
     [ObservableProperty] private Geometry? _previewGeometry;
+    [ObservableProperty] private double _previewSourceWidth = 100;
+    [ObservableProperty] private double _previewSourceHeight = 100;
 
     public bool HasRegion => _regions.Current is not null;
 
     public InjectionMode[] InjectionModes { get; } = Enum.GetValues<InjectionMode>();
-
-    /// <summary>
-    /// Initial app flow: prompt for a target region as the very first action.
-    /// If the user cancels (Esc) before any region was ever set, the app exits — there's
-    /// nothing else to do without a region. Subsequent calibrations are optional.
-    /// </summary>
-    public async Task RunInitialFlowAsync()
-    {
-        var rect = await AwaitCalibrationAsync();
-        if (rect is { } r)
-        {
-            _regions.Set(r);
-            TargetRegionLabel = $"{(int)r.W}×{(int)r.H} at ({(int)r.X},{(int)r.Y})";
-            ShowRegionWindows(r);
-        }
-        else
-        {
-            // No region set, no UI to fall back to.
-            Shutdown();
-        }
-    }
 
     [RelayCommand]
     private async Task OpenSvgAsync()
@@ -134,29 +123,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _doc = await _loader.LoadAsync(s, new FlattenOptions(0.25));
         SvgFileLabel = files[0].Name;
         PreviewGeometry = (Geometry)_previewRenderer.BuildGeometry(_doc.Strokes);
+        PreviewSourceWidth = _doc.SourceViewBox.W;
+        PreviewSourceHeight = _doc.SourceViewBox.H;
     }
 
     [RelayCommand]
     private async Task CalibrateAsync()
     {
-        // Hide the region overlays so they don't sit over the new selection target.
-        _regionPreview?.Hide();
-        _regionControls?.Hide();
+        // Hide the main window so the user can drag-select over the target app.
+        _mainWindow?.Hide();
 
         var rect = await AwaitCalibrationAsync();
 
         if (rect is { } r)
         {
-            _regions.Set(r);
             TargetRegionLabel = $"{(int)r.W}×{(int)r.H} at ({(int)r.X},{(int)r.Y})";
-            ShowRegionWindows(r);
+            _mainWindow?.FitPreviewTo(r);
         }
-        else
-        {
-            // User cancelled — restore the previous region's overlays.
-            _regionPreview?.Show();
-            _regionControls?.Show();
-        }
+
+        _mainWindow?.Show();
+        _mainWindow?.Activate();
     }
 
     private static Task<ModelRect?> AwaitCalibrationAsync()
@@ -167,26 +153,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
         overlay.Show();
         overlay.Activate();
         return tcs.Task;
-    }
-
-    private void ShowRegionWindows(ModelRect r)
-    {
-        if (_regionPreview is null)
-        {
-            _regionPreview = new RegionPreview();
-            _regionPreview.Closed += (_, _) => _regionPreview = null;
-        }
-        _regionPreview.PositionOver(r);
-        _regionPreview.Show();
-
-        if (_regionControls is null)
-        {
-            _regionControls = new RegionControls();
-            _regionControls.Closed += (_, _) => _regionControls = null;
-        }
-        _regionControls.PositionBelow(r);
-        _regionControls.Show();
-        _regionControls.Activate();
     }
 
     [RelayCommand]
@@ -200,6 +166,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var ctrl = new PlaybackController(injector, _planner);
         ctrl.StateChanged += OnStateChanged;
         ctrl.CountdownTick += OnCountdownTick;
+        _activePlayback = ctrl;
 
         try
         {
@@ -207,16 +174,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 new PlaybackOptions(
                     SpeedMultiplier: SpeedMultiplier,
                     Mode: SelectedInjectionMode,
-                    Countdown: TimeSpan.FromSeconds(3)));
+                    Countdown: TimeSpan.FromSeconds(3),
+                    PrimeTapHold: TimeSpan.FromMilliseconds(40),
+                    PrimeTapSettle: TimeSpan.FromMilliseconds(60)));
         }
         finally
         {
+            _activePlayback = null;
             if (injector is IDisposable d) d.Dispose();
         }
     }
-
-    [RelayCommand]
-    private void Stop() => _playback.RequestStop();
 
     [RelayCommand]
     private void Exit() => Shutdown();
@@ -240,6 +207,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             if (s == PlaybackState.CountingDown)
             {
+                _mainWindow?.Hide();
                 _countdown ??= new CountdownOverlay();
                 if (_regions.Current is { } r) _countdown.PositionOver(r);
                 _countdown.Show();
@@ -248,7 +216,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             {
                 _countdown?.Close(); _countdown = null;
                 // Focus the window under the center of the target rect so the first
-                // SendInput / pen event lands on the intended app and not on our controls bar.
+                // SendInput / pen event lands on the intended app, not on our own window.
                 if (_regions.Current is { } r)
                 {
                     Win32.WindowInterop.FocusWindowAt(
@@ -258,10 +226,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 _indicator ??= new PlottingIndicator();
                 _indicator.Show();
             }
-            else // Idle, Cancelling end
+            else // Idle, Cancelling, end
             {
                 _countdown?.Close(); _countdown = null;
                 _indicator?.Close(); _indicator = null;
+                _mainWindow?.Show();
             }
         });
     }
@@ -271,8 +240,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _countdown?.SetRemaining(remaining));
     }
 
-    private Window? ActiveOwner()
-        => (Window?)_regionControls ?? _regionPreview;
+    private Window? ActiveOwner() => _mainWindow;
 
     private static void Shutdown()
     {
