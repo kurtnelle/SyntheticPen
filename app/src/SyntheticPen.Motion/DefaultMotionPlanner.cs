@@ -13,8 +13,8 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
     {
         if (screenStrokes.Count == 0) yield break;
 
-        double velocity = options.BaseVelocityPxPerSec * options.SpeedMultiplier;
-        double travelVelocity = velocity * options.TravelSpeedFactor;
+        double baseVelocity = options.BaseVelocityPxPerSec * options.SpeedMultiplier;
+        double travelVelocity = baseVelocity * options.TravelSpeedFactor;
         TimeSpan offset = TimeSpan.Zero;
 
         for (int sIdx = 0; sIdx < screenStrokes.Count; sIdx++)
@@ -33,8 +33,22 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
                 yield return new TimedPoint(stroke[0], offset, PenDown: false);
             }
 
-            var (cum, total) = BuildLengthTable(stroke);
-            double T = total / velocity;
+            // Build the arc-length table and a curvature-aware time table.
+            // Local velocity dips on tight curves so the cursor traces small
+            // letters / loops at a believable pace instead of zipping through.
+            var (cumLen, total) = BuildLengthTable(stroke);
+            var radii = ComputeCurvatureRadii(stroke);
+            var cumTime = new double[stroke.Count];
+            for (int i = 0; i < stroke.Count - 1; i++)
+            {
+                double segLen = cumLen[i + 1] - cumLen[i];
+                // Worst-case radius across the segment endpoints — the segment
+                // is only as fast as its slowest end.
+                double rSeg = Math.Min(radii[i], radii[i + 1]);
+                double v = baseVelocity * CurvatureSpeedScale(rSeg, options);
+                cumTime[i + 1] = cumTime[i] + segLen / v;
+            }
+            double T = cumTime[^1];
             int N = Math.Max(2, (int)Math.Ceiling(T * options.SampleHz) + 1);
             var strokeStart = offset;
 
@@ -43,9 +57,9 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
                 ct.ThrowIfCancellationRequested();
                 double u = (double)i / (N - 1);
                 double s = Ease(u);
-                var pt = PointAtArcLength(stroke, cum, s * total);
-                var localOffset = TimeSpan.FromSeconds(u * T);
-                yield return new TimedPoint(pt, strokeStart + localOffset, PenDown: true);
+                double t = s * T;
+                var pt = PointAtTime(stroke, cumTime, t);
+                yield return new TimedPoint(pt, strokeStart + TimeSpan.FromSeconds(t), PenDown: true);
             }
 
             offset = strokeStart + TimeSpan.FromSeconds(T);
@@ -92,5 +106,56 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
         if (u < 0.5) return 4 * u * u * u;
         double f = -2 * u + 2;
         return 1 - f * f * f / 2.0;
+    }
+
+    /// <summary>
+    /// Local radius of curvature at each vertex, approximated from the turning
+    /// angle and average adjacent segment length: R ≈ ds / |dθ|. Endpoints
+    /// have no defined curvature → +∞ (i.e. no slowdown).
+    /// </summary>
+    private static double[] ComputeCurvatureRadii(IReadOnlyList<PointF> pts)
+    {
+        var r = new double[pts.Count];
+        r[0] = double.PositiveInfinity;
+        r[^1] = double.PositiveInfinity;
+        for (int i = 1; i < pts.Count - 1; i++)
+        {
+            var a = pts[i - 1]; var b = pts[i]; var c = pts[i + 1];
+            double d1x = b.X - a.X, d1y = b.Y - a.Y;
+            double d2x = c.X - b.X, d2y = c.Y - b.Y;
+            double l1 = Math.Sqrt(d1x * d1x + d1y * d1y);
+            double l2 = Math.Sqrt(d2x * d2x + d2y * d2y);
+            if (l1 < 1e-9 || l2 < 1e-9) { r[i] = double.PositiveInfinity; continue; }
+            double cross = d1x * d2y - d1y * d2x;
+            double dot = d1x * d2x + d1y * d2y;
+            double absTheta = Math.Abs(Math.Atan2(cross, dot));
+            if (absTheta < 1e-6) { r[i] = double.PositiveInfinity; continue; }
+            r[i] = (l1 + l2) * 0.5 / absTheta;
+        }
+        return r;
+    }
+
+    private static double CurvatureSpeedScale(double radius, PlanOptions opts)
+    {
+        if (opts.CurvatureRefRadius <= 0 || double.IsPositiveInfinity(radius)) return 1.0;
+        double scale = Math.Pow(Math.Max(radius, 0.01) / opts.CurvatureRefRadius, opts.CurvaturePowerLawExp);
+        return Math.Clamp(scale, opts.MinSpeedFraction, 1.0);
+    }
+
+    private static PointF PointAtTime(IReadOnlyList<PointF> pts, double[] cumTime, double t)
+    {
+        if (t <= 0) return pts[0];
+        if (t >= cumTime[^1]) return pts[^1];
+        int lo = 0, hi = cumTime.Length - 1;
+        while (lo < hi - 1)
+        {
+            int mid = (lo + hi) / 2;
+            if (cumTime[mid] <= t) lo = mid; else hi = mid;
+        }
+        double dt = cumTime[hi] - cumTime[lo];
+        double f = dt < 1e-9 ? 0 : (t - cumTime[lo]) / dt;
+        return new PointF(
+            pts[lo].X + (pts[hi].X - pts[lo].X) * f,
+            pts[lo].Y + (pts[hi].Y - pts[lo].Y) * f);
     }
 }
