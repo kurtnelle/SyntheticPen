@@ -77,3 +77,109 @@ code, kbd, .mono { font-family: var(--font-mono); }
   padding: 0 32px;
   z-index: 1;
 }
+
+/* ---- Header / nav ---- */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: rgba(10, 10, 10, 0.6);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 1280px; margin: 0 auto; padding: 18px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--ink);
+}
+.logo-mark { color: var(--blue); filter: drop-shadow(0 0 6px rgba(77, 163, 255, 0.4)); }
+.nav-links { display: flex; align-items: center; gap: 28px; }
+.nav-link {
+  font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--silver); cursor: pointer;
+  transition: color 0.18s;
+}
+.nav-link:hover { color: var(--ink); }
+.nav-link.cta {
+  color: var(--blue); border: 1px solid rgba(77, 163, 255, 0.3);
+  padding: 7px 14px; border-radius: 2px; transition: background 0.18s, border-color 0.18s;
+}
+.nav-link.cta:hover { background: rgba(77, 163, 255, 0.08); border-color: var(--blue); }
+
+/* ---- Tag / pulsing dot ---- */
+.tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--blue);
+  background: rgba(77, 163, 255, 0.08); border: 1px solid rgba(77, 163, 255, 0.2);
+  border-radius: 2px; padding: 6px 12px;
+}
+.tag .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blue); box-shadow: 0 0 8px var(--blue);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ---- Buttons ---- */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-weight: 600; font-size: 14px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #4DA3FF, #6BE6FF);
+  color: #0A0A0A; padding: 14px 22px; border: none; border-radius: 2px; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(107,230,255,0.4), 0 0 24px rgba(77,163,255,0.35), 0 0 60px rgba(77,163,255,0.15);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 0 1px rgba(107,230,255,0.7), 0 0 32px rgba(77,163,255,0.55), 0 0 90px rgba(77,163,255,0.3);
+}
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-weight: 500; font-size: 14px;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink);
+  background: transparent; border: 1px solid var(--border-strong);
+  padding: 14px 22px; border-radius: 2px; cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.btn-ghost:hover { color: var(--blue); border-color: var(--blue); background: rgba(77,163,255,0.04); }
+
+/* ---- Typography ---- */
+.display {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(48px, 7.5vw, 104px); line-height: 0.95;
+  letter-spacing: -0.025em; text-transform: uppercase;
+}
+.section-title {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(32px, 4vw, 52px); line-height: 1.05; letter-spacing: -0.02em;
+}
+.subhead { font-size: 18px; font-weight: 400; color: var(--silver); }
+.heading { font-family: var(--font-display); color: var(--ink); }
+
+/* ---- Panel ---- */
+.panel {
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border: 1px solid var(--border); border-radius: 4px;
+}
+
+/* ---- Reveal-on-scroll ---- */
+.reveal { opacity: 0; transform: translateY(20px); }
+.reveal.in {
+  opacity: 1; transform: translateY(0);
+  transition: opacity 0.8s cubic-bezier(.2,.7,.2,1), transform 0.8s cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+  .tag .dot { animation: none; }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1099px) {
+  .nav-links { gap: 18px; }
+}
+@media (max-width: 768px) {
+  .nav-links a:not(.cta) { display: none; }
+}
