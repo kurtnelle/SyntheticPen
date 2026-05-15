@@ -14,7 +14,7 @@ export default function Hero() {
             width: 6, height: 6, borderRadius: '50%', background: 'var(--blue)',
             boxShadow: '0 0 8px var(--blue)'
           }} />
-          v0.4 BETA · Windows 10/11
+          Free · Windows 10/11
         </span>
 
         <h1 style={{
@@ -38,7 +38,7 @@ export default function Hero() {
             color: '#0A0A0A', padding: '14px 22px', borderRadius: 2,
             boxShadow: '0 0 0 1px rgba(107,230,255,0.4), 0 0 24px rgba(77,163,255,0.35), 0 0 60px rgba(77,163,255,0.15)',
             textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 14
-          }}>Download Beta ↘</a>
+          }}>Download ↘</a>
           <a href="#how" style={{
             fontFamily: 'var(--font-display)', fontWeight: 500,
             border: '1px solid var(--border-strong)', padding: '14px 22px', borderRadius: 2,

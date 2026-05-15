@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { HERO_DRAW_MS, HERO_HOLD_MS } from '../lib/timing';
 import { CursorArrow } from './icons/CursorArrow';
 
-// Single placeholder cursive path. Phase 1 replaces with full handoff geometry.
+// Decorative cursive path used for the hero draw-on animation.
 const SIG_PATH = 'M 120 160 C 140 100 200 100 220 160 C 240 220 300 220 320 160 C 340 100 400 100 420 160';
 
 export default function SignatureCanvas() {
