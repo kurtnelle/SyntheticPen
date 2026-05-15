@@ -29,8 +29,20 @@ function Header() {
 
 function Hero() {
   return (
-    <section style={{ position: 'relative', paddingTop: 56, paddingBottom: 80, overflow: 'hidden' }}>
-      <BackgroundSplines />
+    <section className="hero" style={{ paddingTop: 96, paddingBottom: 104 }}>
+      <video
+        className="hero-video"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/hero-poster.jpg"
+        aria-hidden="true"
+      >
+        <source src="/hero.mp4" type="video/mp4" />
+      </video>
+      <div className="hero-overlay" aria-hidden="true" />
       <div className="container" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
           <span className="tag"><span className="dot" />Free · Windows 10/11</span>
@@ -38,12 +50,9 @@ function Hero() {
         <h1 className="display" style={{ textAlign: 'center', maxWidth: 1100, margin: '0 auto' }}>
           Vector Paths<br />Into Real Motion
         </h1>
-        <p className="subhead" style={{ textAlign: 'center', maxWidth: 640, margin: '24px auto 0' }}>
-          Synthetic cursor &amp; pen motion for Windows. SyntheticPen replays SVG paths as native input — like a CNC plotter for your handwriting.
+        <p className="subhead" style={{ textAlign: 'center', maxWidth: 660, margin: '24px auto 0' }}>
+          Synthetic cursor &amp; pen motion for Windows. SyntheticPen replays SVG paths, signatures, and text as input the OS treats as a real pen.
         </p>
-        <div style={{ maxWidth: 960, margin: '52px auto 0', position: 'relative' }}>
-          <SignatureCanvas />
-        </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 44, flexWrap: 'wrap' }}>
           <button className="btn-primary" onClick={() => scrollTo('cta')}>
             Download
@@ -53,10 +62,23 @@ function Hero() {
           </button>
           <button className="btn-ghost" onClick={() => scrollTo('how')}>See how it works</button>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, marginTop: 48, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ink-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, marginTop: 48, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--silver)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           <span>Native Win32 input</span>
           <span style={{ opacity: 0.3 }}>/</span>
           <span>SVG · TTF/OTF</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Demo() {
+  return (
+    <section style={{ position: 'relative', paddingTop: 64, paddingBottom: 80, overflow: 'hidden' }}>
+      <BackgroundSplines />
+      <div className="container" style={{ position: 'relative', zIndex: 2 }}>
+        <div style={{ maxWidth: 960, margin: '0 auto' }}>
+          <SignatureCanvas />
         </div>
       </div>
     </section>
@@ -69,6 +91,7 @@ export default function LandingPage() {
       <Header />
       <main>
         <Hero />
+        <Demo />
         <WhatItIs />
         <HowItWorks />
         <UseCases />

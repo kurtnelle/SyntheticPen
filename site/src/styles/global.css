@@ -159,6 +159,31 @@ code, kbd, .mono { font-family: var(--font-mono); }
 .subhead { font-size: 18px; font-weight: 400; color: var(--silver); }
 .heading { font-family: var(--font-display); color: var(--ink); }
 
+/* ---- Hero video ---- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-0) url('/hero-poster.jpg') center / cover no-repeat;
+}
+.hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 75% 65% at 50% 42%, rgba(10, 10, 10, 0.45), rgba(10, 10, 10, 0.82)),
+    linear-gradient(180deg, rgba(10, 10, 10, 0.72) 0%, rgba(10, 10, 10, 0.32) 38%, rgba(10, 10, 10, 0.8) 100%);
+}
+
 /* ---- Panel ---- */
 .panel {
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
@@ -174,6 +199,7 @@ code, kbd, .mono { font-family: var(--font-mono); }
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; }
   .tag .dot { animation: none; }
+  .hero-video { display: none; }
 }
 
 /* ---- Responsive ---- */

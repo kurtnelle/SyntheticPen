@@ -160,12 +160,11 @@ export function SignatureCanvas() {
       </svg>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12, padding: '10px 14px', background: 'rgba(18,18,18,0.6)', border: '1px solid var(--border)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--silver)', letterSpacing: '0.08em' }}>
-        <span style={{ color: 'var(--blue)' }}>● PLOTTING</span>
+        <span style={{ color: 'var(--blue)' }}>● REPLAY</span>
         <div style={{ flex: 1, height: 2, background: 'rgba(255,255,255,0.06)', position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progress * 100}%`, background: 'linear-gradient(90deg, #4DA3FF, #6BE6FF)', boxShadow: '0 0 8px rgba(107,230,255,0.6)' }} />
         </div>
         <span>{(progress * 100).toFixed(1)}%</span>
-        <span style={{ color: 'var(--ink-dim)' }}>FEED 4800 mm/min</span>
         <span style={{ color: 'var(--ink-dim)' }}>STROKES {SIGNATURE_STROKES.length}</span>
       </div>
     </div>
