@@ -1,21 +1,95 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { REPO } from '../lib/links';
 ---
-<BaseLayout title="Privacy — SyntheticPen" description="SyntheticPen privacy policy.">
-  <main class="container" style="padding: 80px 32px;">
-    <h1 style="font-size: clamp(32px, 4vw, 52px);">Privacy</h1>
+<BaseLayout title="Privacy Policy — SyntheticPen" description="SyntheticPen privacy policy. No data collected, no telemetry, no network calls.">
+  <main class="container" style="padding: 80px 32px; max-width: 820px;">
+    <h1 style="font-size: clamp(32px, 4vw, 52px);">Privacy Policy</h1>
+    <p style="color: var(--silver); margin-top: 8px; font-size: 14px;">
+      Effective date: 15 May 2026
+    </p>
+
+    <p style="color: var(--silver); margin-top: 24px;">
+      SyntheticPen ("the application", "we", "us") is a Windows desktop application
+      that replays vector geometry as synthetic pen and cursor input. This policy
+      explains what information the application does and does not handle.
+    </p>
+
     <p style="color: var(--silver); margin-top: 16px;">
-      SyntheticPen does not collect, transmit, or store any personal data. The application runs entirely
-      on your device. No telemetry, no analytics, no network calls.
+      <strong>Summary: SyntheticPen does not collect, transmit, or store any
+      personal data.</strong> It runs entirely on your device. There is no
+      telemetry, no analytics, no advertising, no account, and no network
+      communication of any kind.
     </p>
-    <h2 style="margin-top: 32px;">Local files</h2>
+
+    <h2 style="margin-top: 40px;">Information we collect</h2>
     <p style="color: var(--silver);">
-      Any SVGs or motion profiles you load remain on your machine. Settings are stored in your user
-      profile under <code>%APPDATA%\SyntheticPen</code>.
+      None. SyntheticPen does not collect or process personal information,
+      usage data, device identifiers, location, or contacts. It does not create
+      a user account and does not require sign-in.
     </p>
+
+    <h2 style="margin-top: 32px;">Local files and settings</h2>
+    <p style="color: var(--silver);">
+      Any SVGs or motion profiles you open are read from your computer and
+      remain on your computer. Application settings are stored locally in your
+      Windows user profile under <code>%APPDATA%\SyntheticPen</code>. These
+      files never leave your device and are not transmitted to us or any third
+      party. You may delete them at any time.
+    </p>
+    <p style="color: var(--silver); margin-top: 16px;">
+      When diagnostics are enabled in development builds, the application may
+      write log files to a local <code>debug</code> folder for troubleshooting.
+      Release builds distributed through the Microsoft Store do not write
+      diagnostic logs, and no logs are ever sent off the device.
+    </p>
+
+    <h2 style="margin-top: 32px;">Network use</h2>
+    <p style="color: var(--silver);">
+      SyntheticPen makes no network connections. It does not contact our
+      servers or any external service during installation or use.
+    </p>
+
+    <h2 style="margin-top: 32px;">Third parties</h2>
+    <p style="color: var(--silver);">
+      We do not share information with third parties because we do not collect
+      any. The application integrates no third-party analytics, advertising, or
+      tracking SDKs. Distribution and updates are handled by the Microsoft
+      Store under Microsoft's own privacy terms.
+    </p>
+
+    <h2 style="margin-top: 32px;">Children's privacy</h2>
+    <p style="color: var(--silver);">
+      SyntheticPen does not collect personal information from anyone, including
+      children, and is not directed at children.
+    </p>
+
+    <h2 style="margin-top: 32px;">Data security</h2>
+    <p style="color: var(--silver);">
+      Because no data is collected or transmitted, there is no personal data in
+      our custody to secure. Files you create or load are protected by your own
+      operating system's file permissions.
+    </p>
+
+    <h2 style="margin-top: 32px;">Your rights</h2>
+    <p style="color: var(--silver);">
+      Since we hold no personal data about you, there is nothing for us to
+      access, correct, export, or delete on your behalf. You retain full
+      control of every file the application reads or writes on your device.
+    </p>
+
+    <h2 style="margin-top: 32px;">Changes to this policy</h2>
+    <p style="color: var(--silver);">
+      If this policy changes, the updated version will be posted on this page
+      with a revised effective date. Material changes will also be noted in the
+      project's release notes.
+    </p>
+
     <h2 style="margin-top: 32px;">Contact</h2>
     <p style="color: var(--silver);">
-      Questions? Open an issue on the project's GitHub repository.
+      Questions about this policy can be raised by opening an issue on the
+      project's GitHub repository:
+      <a href={REPO} style="color: var(--silver);">{REPO}</a>.
     </p>
   </main>
 </BaseLayout>
