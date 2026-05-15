@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SyntheticPen MSI authoring (WiX v5).
+
+  Built per-architecture by .github/workflows/app-release.yml. The workflow
+  supplies these preprocessor variables via `wix build -d Name=Value`:
+
+    ProductVersion  e.g. 0.1.0
+    UpgradeCode     stable GUID, one per architecture (never change):
+                      x64   = 3F7C1A92-8D4E-4B6A-9E21-5C0FA7B3D284
+                      arm64 = A1E9D60B-2C7F-4538-8B14-6D3A0F9C7E52
+    PublishDir      path to `dotnet publish` self-contained output
+    IconFile        path to the app .ico (for ARP / shortcut)
+
+  Architecture comes from `wix build -arch x64|arm64`.
+  Unsigned by design (no signing identity available).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="SyntheticPen"
+      Manufacturer="kurtnelle"
+      Version="$(ProductVersion)"
+      UpgradeCode="$(UpgradeCode)"
+      Scope="perMachine"
+      Compressed="yes">
+
+    <SummaryInformation Description="SyntheticPen $(ProductVersion) installer" />
+
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of SyntheticPen is already installed. Uninstall it first to install an older version." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Add/Remove Programs metadata -->
+    <Icon Id="AppIcon" SourceFile="$(IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPURLINFOABOUT" Value="https://syntheticpen.com" />
+
+    <!-- Install location: 64-bit Program Files (x64 and native arm64) -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="SyntheticPen" />
+    </StandardDirectory>
+
+    <!-- Start-menu shortcut -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="AppStartShortcut"
+                  Name="SyntheticPen"
+                  Description="Replay vector geometry as synthetic Windows pen input"
+                  Target="[INSTALLFOLDER]SyntheticPen.App.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <RemoveFolder Id="RemoveProgramMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\kurtnelle\SyntheticPen"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <!-- Harvest the entire self-contained publish output -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(PublishDir)\**" />
+    </ComponentGroup>
+
+    <Feature Id="Main" Title="SyntheticPen" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+</Wix>

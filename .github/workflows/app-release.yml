@@ -1,0 +1,97 @@
+name: app-release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version for manual builds (e.g. 0.1.0). Defaults to 0.0.0 (test).'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: app/global.json
+
+      - name: Resolve version and tag
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $v = $env:GITHUB_REF_NAME -replace '^v',''
+            $tag = $env:GITHUB_REF_NAME
+          } else {
+            $v = if ('${{ inputs.version }}') { '${{ inputs.version }}' } else { '0.0.0' }
+            $tag = "v$v"
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag=$tag"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "version=$v tag=$tag"
+
+      - name: Install WiX v5
+        shell: pwsh
+        run: dotnet tool install --global wix --version 5.*
+
+      - name: Publish + build MSI (x64)
+        shell: pwsh
+        run: |
+          dotnet publish app/src/SyntheticPen.App/SyntheticPen.App.csproj `
+            -c Release -r win-x64 --self-contained true -o publish/x64
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          wix build installer/SyntheticPen.wxs -arch x64 `
+            -d ProductVersion=${{ steps.ver.outputs.version }} `
+            -d UpgradeCode=3F7C1A92-8D4E-4B6A-9E21-5C0FA7B3D284 `
+            -d PublishDir=publish/x64 `
+            -d IconFile=app/src/SyntheticPen.App/Assets/app.ico `
+            -o dist/SyntheticPen-${{ steps.ver.outputs.version }}-x64.msi
+
+      - name: Publish + build MSI (arm64)
+        shell: pwsh
+        run: |
+          dotnet publish app/src/SyntheticPen.App/SyntheticPen.App.csproj `
+            -c Release -r win-arm64 --self-contained true -o publish/arm64
+          wix build installer/SyntheticPen.wxs -arch arm64 `
+            -d ProductVersion=${{ steps.ver.outputs.version }} `
+            -d UpgradeCode=A1E9D60B-2C7F-4538-8B14-6D3A0F9C7E52 `
+            -d PublishDir=publish/arm64 `
+            -d IconFile=app/src/SyntheticPen.App/Assets/app.ico `
+            -o dist/SyntheticPen-${{ steps.ver.outputs.version }}-arm64.msi
+
+      - name: Write release notes
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          @"
+          SyntheticPen $v — free.
+
+          The primary install is the **Microsoft Store**. These MSIs are an
+          unsigned fallback for users who can't use the Store.
+
+          On first run Windows shows **"Windows protected your PC"** — click
+          **More info → Run anyway** — and a **UAC** prompt to install.
+
+          - ``SyntheticPen-$v-x64.msi`` — Intel / AMD PCs
+          - ``SyntheticPen-$v-arm64.msi`` — Arm64 PCs
+          "@ | Out-File -FilePath notes.md -Encoding utf8
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.ver.outputs.tag }}'
+          $v   = '${{ steps.ver.outputs.version }}'
+          $flag = if ($v -eq '0.0.0') { '--prerelease' } else { '--latest' }
+          $exists = gh release view $tag 2>$null
+          if (-not $exists) {
+            gh release create $tag --title "SyntheticPen $v" --notes-file notes.md $flag
+          }
+          gh release upload $tag (Get-Item dist/*.msi) --clobber
