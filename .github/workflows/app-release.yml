@@ -44,12 +44,12 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish app/src/SyntheticPen.App/SyntheticPen.App.csproj `
-            -c Release -r win-x64 --self-contained true -o publish/x64
+            -c Release -r win-x64 --self-contained true -o "$env:GITHUB_WORKSPACE/publish/x64"
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           wix build installer/SyntheticPen.wxs -arch x64 `
             -d ProductVersion=${{ steps.ver.outputs.version }} `
             -d UpgradeCode=3F7C1A92-8D4E-4B6A-9E21-5C0FA7B3D284 `
-            -d PublishDir=publish/x64 `
+            -d PublishDir="$env:GITHUB_WORKSPACE/publish/x64" `
             -d IconFile=app/src/SyntheticPen.App/Assets/app.ico `
             -o dist/SyntheticPen-${{ steps.ver.outputs.version }}-x64.msi
 
@@ -57,11 +57,11 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish app/src/SyntheticPen.App/SyntheticPen.App.csproj `
-            -c Release -r win-arm64 --self-contained true -o publish/arm64
+            -c Release -r win-arm64 --self-contained true -o "$env:GITHUB_WORKSPACE/publish/arm64"
           wix build installer/SyntheticPen.wxs -arch arm64 `
             -d ProductVersion=${{ steps.ver.outputs.version }} `
             -d UpgradeCode=A1E9D60B-2C7F-4538-8B14-6D3A0F9C7E52 `
-            -d PublishDir=publish/arm64 `
+            -d PublishDir="$env:GITHUB_WORKSPACE/publish/arm64" `
             -d IconFile=app/src/SyntheticPen.App/Assets/app.ico `
             -o dist/SyntheticPen-${{ steps.ver.outputs.version }}-arm64.msi
 
