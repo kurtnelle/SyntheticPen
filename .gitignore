@@ -20,6 +20,7 @@ BundleArtifacts/
 *.msix
 *.msixbundle
 GeneratedArtifacts/
+*.assets.cache
 
 # Node / Astro
 node_modules/
