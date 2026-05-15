@@ -8,7 +8,7 @@
     <Deterministic>true</Deterministic>
     <!-- All projects must restore a net10.0/win-x64 target so the MSIX
          packaging project can publish the app graph (NETSDK1047). -->
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <NeutralLanguage>en-US</NeutralLanguage>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
   </PropertyGroup>
