@@ -75,7 +75,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _stateText = string.Empty;
     [ObservableProperty] private double _speedMultiplier = 1.0;
     [ObservableProperty] private bool _humanize;
-    [ObservableProperty] private InjectionMode _selectedInjectionMode = InjectionMode.SyntheticPointer;
     [ObservableProperty] private string _svgFileLabel = "(no file)";
     [ObservableProperty] private string _targetRegionLabel = "(not set)";
     [ObservableProperty] private Geometry? _previewGeometry;
@@ -84,8 +83,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isCloseArmed;
 
     public bool HasRegion => _regions.Current is not null;
-
-    public InjectionMode[] InjectionModes { get; } = Enum.GetValues<InjectionMode>();
 
     [RelayCommand]
     private async Task OpenSvgAsync()
@@ -173,7 +170,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         var screenStrokes = StrokeTransform.FitToScreen(_strokes, _sourceViewBox, _regions.Current.Value);
 
-        var injector = _injectorFactory.Create(SelectedInjectionMode);
+        var injector = _injectorFactory.Create(InjectionMode.SyntheticPointer);
         var ctrl = new PlaybackController(injector, _planner);
         ctrl.StateChanged += OnStateChanged;
         ctrl.CountdownTick += OnCountdownTick;
@@ -184,7 +181,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             await ctrl.PlayAsync(screenStrokes,
                 new PlaybackOptions(
                     SpeedMultiplier: SpeedMultiplier,
-                    Mode: SelectedInjectionMode,
+                    Mode: InjectionMode.SyntheticPointer,
                     Countdown: TimeSpan.FromSeconds(3),
                     PrimeTapHold: TimeSpan.FromMilliseconds(40),
                     PrimeTapSettle: TimeSpan.FromMilliseconds(60),

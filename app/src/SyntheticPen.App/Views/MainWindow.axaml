@@ -89,10 +89,6 @@
                 <Button Classes="icon" Command="{Binding OpenSvgCommand}" ToolTip.Tip="Open SVG">
                     <i:Icon Value="fa-folder-open"/>
                 </Button>
-                <ComboBox ItemsSource="{Binding InjectionModes}"
-                          SelectedItem="{Binding SelectedInjectionMode}"
-                          MinWidth="140"
-                          ToolTip.Tip="Injection mode"/>
                 <Button Classes="icon" Command="{Binding CalibrateCommand}" ToolTip.Tip="Calibrate target region">
                     <i:Icon Value="fa-crosshairs"/>
                 </Button>
