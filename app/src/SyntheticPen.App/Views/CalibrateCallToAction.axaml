@@ -4,7 +4,7 @@
         x:Class="SyntheticPen.App.Views.CalibrateCallToAction"
         x:DataType="vm:MainWindowViewModel"
         SystemDecorations="None"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Width="480" Height="180"
         Topmost="True"
         ShowInTaskbar="False"
