@@ -11,6 +11,12 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
     private bool _disposed;
     private PointF _lastPoint;
     private bool _contact;
+    // POINTER_FLAGS.NEW marks the arrival of a new pointer. The Windows pen
+    // injection samples pair NEW with the first DOWN event and never repeat
+    // it for the same pointer ID while it remains tracked. Sending NEW twice
+    // (e.g. on a second DOWN after the prime tap's UP) makes
+    // InjectSyntheticPointerInput reject the event.
+    private bool _needsNew = true;
 
     public SyntheticPointerInjector()
     {
@@ -33,8 +39,15 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
         if (down) _contact = true;
 
         POINTER_FLAGS flags = POINTER_FLAGS.INRANGE;
-        if (_contact) flags |= POINTER_FLAGS.INCONTACT | POINTER_FLAGS.FIRSTBUTTON;
-        if (down) flags |= POINTER_FLAGS.DOWN | POINTER_FLAGS.NEW;
+        // INCONTACT/FIRSTBUTTON belong on contact-or-drag events. Including
+        // them on UP contradicts the "contact is ending" semantics and can
+        // make Windows fully terminate the pointer.
+        if (_contact && !up) flags |= POINTER_FLAGS.INCONTACT | POINTER_FLAGS.FIRSTBUTTON;
+        if (down)
+        {
+            flags |= POINTER_FLAGS.DOWN;
+            if (_needsNew) { flags |= POINTER_FLAGS.NEW; _needsNew = false; }
+        }
         else if (up) flags |= POINTER_FLAGS.UP;
         else if (drag) flags |= POINTER_FLAGS.UPDATE;
 
@@ -56,7 +69,11 @@ public sealed class SyntheticPointerInjector : ICursorInjector, IDisposable
         };
 
         if (!InjectSyntheticPointerInput(_device, ref info, 1))
-            throw new InjectionBlockedException("InjectSyntheticPointerInput failed");
+        {
+            var err = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            throw new InjectionBlockedException(
+                $"InjectSyntheticPointerInput failed (Win32 err {err}, flags=0x{(uint)flags:X}, contact={_contact}, pt=({p.X:F0},{p.Y:F0}))");
+        }
 
         if (up) _contact = false;
         return Task.CompletedTask;

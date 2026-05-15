@@ -31,7 +31,13 @@ public sealed class PlaybackController : IPlaybackController
             await RunPlayback(screenStrokes, opts, lct);
         }
         catch (OperationCanceledException) { /* normal stop */ }
-        catch (InjectionBlockedException) { /* swallow — state transitions to Idle in finally */ }
+        catch (InjectionBlockedException ex)
+        {
+            // Logged so the cause is visible in the debugger Output window /
+            // attached trace listeners; state still transitions to Idle in the
+            // finally block so the UI returns to a usable state.
+            System.Diagnostics.Trace.TraceWarning($"Playback aborted: {ex.Message}");
+        }
         finally
         {
             await SafePenUp();

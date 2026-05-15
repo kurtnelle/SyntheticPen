@@ -52,12 +52,16 @@ public sealed class DefaultMotionPlanner : IMotionPlanner
             int N = Math.Max(2, (int)Math.Ceiling(T * options.SampleHz) + 1);
             var strokeStart = offset;
 
+            // Emit samples at UNIFORM time intervals — the curvature-aware
+            // velocity baked into cumTime already controls how fast the
+            // cursor traverses each segment, so global easing on top of that
+            // collapses multiple samples into microseconds at stroke start
+            // (Ease'(0)=0), which the synthetic-pointer API rate-limits and
+            // rejects with ERROR_INVALID_PARAMETER.
             for (int i = 0; i < N; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                double u = (double)i / (N - 1);
-                double s = Ease(u);
-                double t = s * T;
+                double t = (double)i / (N - 1) * T;
                 var pt = PointAtTime(stroke, cumTime, t);
                 yield return new TimedPoint(pt, strokeStart + TimeSpan.FromSeconds(t), PenDown: true);
             }
