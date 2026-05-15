@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReveal, SectionHeader } from './sections';
 import { LogoMark } from './icons';
-import { DOWNLOAD_URL, RELEASES, REPO, SITE, DOCS } from '../../lib/links';
+import { DOWNLOAD_URL, RELEASES, REPO, ISSUES, TEXTTOSVG, DOCS } from '../../lib/links';
 
 function UseCaseDemo({ id }: { id: string }) {
   const [t, setT] = useState(0);
@@ -19,7 +19,6 @@ function UseCaseDemo({ id }: { id: string }) {
     a11y: 'M 50 130 L 80 80 L 110 130 L 80 105 M 130 130 L 130 80 M 130 130 L 170 130 L 170 80 M 195 90 C 195 80 230 80 230 90 L 230 130 M 195 130 L 230 130',
     svg: 'M 60 100 C 60 70 100 60 130 90 S 200 130 230 100 S 280 70 320 90 S 360 130 340 160',
     auto: 'M 50 60 L 50 180 M 50 60 L 350 60 M 50 120 L 350 120 M 50 180 L 350 180 M 130 60 L 130 180 M 250 60 L 250 180',
-    cnc: 'M 60 160 L 100 60 L 140 160 L 180 60 L 220 160 L 260 60 L 300 160 L 340 60',
   };
   const d = drawings[id] || drawings.sig;
   const pathRef = useRef<SVGPathElement>(null);
@@ -46,7 +45,7 @@ function UseCaseDemo({ id }: { id: string }) {
       </defs>
       <rect x="0" y="0" width="400" height="240" fill="url(#ucGrid)" />
       <text x="14" y="22" fontFamily="JetBrains Mono, monospace" fontSize="9" fill="rgba(166,166,166,0.4)" letterSpacing="1">target_app.exe</text>
-      <text x="14" y="228" fontFamily="JetBrains Mono, monospace" fontSize="9" fill="rgba(166,166,166,0.4)" letterSpacing="1">feed 4800 mm/min · {(t * 100).toFixed(0)}%</text>
+      <text x="14" y="228" fontFamily="JetBrains Mono, monospace" fontSize="9" fill="rgba(166,166,166,0.4)" letterSpacing="1">replay · {(t * 100).toFixed(0)}%</text>
       <path ref={pathRef} d={d} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="2 3" />
       <path d={d} fill="none" stroke="url(#ucInk)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={1 - t} style={{ filter: 'drop-shadow(0 0 6px rgba(77,163,255,0.7))', opacity: 0.65 }} />
       <path d={d} fill="none" stroke="#E8F4FF" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={1 - t} />
@@ -65,7 +64,6 @@ export function UseCases() {
     { id: 'a11y', label: 'Accessibility', desc: 'Plot vector glyphs as handwriting for users who cannot hold a stylus. Voice → vector → motion.' },
     { id: 'svg', label: 'SVG Replay', desc: 'Drop an .svg onto SyntheticPen and watch the pointer trace it across any canvas surface.' },
     { id: 'auto', label: 'Annotation Automation', desc: 'Drive QA tooling and design reviews. Repeatable marks for screen capture, demos, and regression.' },
-    { id: 'cnc', label: 'Virtual CNC', desc: 'Pipe G-code through the planner. Visualize tool paths against any 2D canvas before machining.' },
   ];
   const [active, setActive] = useState(0);
   const c = cases[active];
@@ -170,18 +168,18 @@ function MotionProfile() {
 export function Technology() {
   const ref = useReveal();
   const rows: [string, string][] = [
-    ['Parser', 'SVG 1.1 · DXF R12 · TTF glyph outlines · CSV stroke logs'],
-    ['Resampler', 'Adaptive arc-length, max chord error 0.05 px'],
-    ['Planner', 'Jerk-limited S-curve, look-ahead 64 nodes, 1 kHz'],
-    ['Dispatcher', 'SendInput · WM_POINTER · Wacom WinTab · UIA'],
-    ['Sandbox', 'Optional driver mode for kernel-level input (signed)'],
-    ['Scripting', 'JavaScript hooks, CLI, named pipe IPC'],
-    ['Telemetry', 'Per-stroke timing, coordinate trace, motion log'],
-    ['Footprint', '14 MB installer · 38 MB working set'],
+    ['Input', 'SVG 1.1 paths · TTF/OTF glyph outlines'],
+    ['Centerline', 'Euclidean distance transform + skeletonization'],
+    ['Resampler', 'Adaptive arc-length · centripetal Catmull–Rom'],
+    ['Velocity', 'Curvature-aware pacing (2⁄3 power law)'],
+    ['Pressure', 'Derived from stroke radius'],
+    ['Dispatcher', 'Synthetic pen injection · SendInput fallback'],
+    ['Platform', 'Windows 10/11 · x64 + Arm64 · MSIX'],
+    ['Telemetry', 'None · no network, no analytics'],
   ];
   return (
     <section id="tech" className="container" style={{ paddingTop: 80, paddingBottom: 80 }}>
-      <SectionHeader num="04 / TECHNOLOGY" eyebrow="Under the hood" title="Built like motion control hardware." body="A look-ahead planner, jerk-limited velocity profiles, and a native Win32 input dispatcher. SyntheticPen treats your cursor with the same discipline a CNC controller treats a tool head." />
+      <SectionHeader num="04 / TECHNOLOGY" eyebrow="Under the hood" title="Built like motion control hardware." body="A curvature-aware velocity model and a native Win32 pen-injection path. SyntheticPen moves your cursor with the discipline a CNC controller brings to a tool head." />
       <div ref={ref} className="reveal" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 24, alignItems: 'start' }}>
         <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
@@ -217,12 +215,11 @@ export function CTA() {
             <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 36, flexWrap: 'wrap' }}>
               <a className="btn-primary" href={DOWNLOAD_URL} target="_blank" rel="noopener">
                 Download — Free
-                <span className="mono" style={{ fontSize: 11, opacity: 0.7 }}>14 MB</span>
               </a>
               <a className="btn-ghost" href={DOCS}>Read the docs</a>
             </div>
             <div className="mono" style={{ fontSize: 11, letterSpacing: '0.15em', color: 'var(--ink-dim)', marginTop: 28, textTransform: 'uppercase' }}>
-              SHA256 · 4DA3FF6BE6FF · Signed · MIT-licensed core
+              MICROSOFT STORE · WINDOWS 10/11 · x64 + ARM64
             </div>
           </div>
         </div>
@@ -242,9 +239,10 @@ export function Footer() {
         <div className="mono" style={{ fontSize: 11, letterSpacing: '0.15em', color: 'var(--ink-dim)' }}>© 2026 · BUILT FOR PRECISION</div>
         <div style={{ display: 'flex', gap: 24 }}>
           <a className="nav-link" style={{ fontSize: 11 }} href={DOCS}>Docs</a>
-          <a className="nav-link" style={{ fontSize: 11 }} href={RELEASES} target="_blank" rel="noopener">Changelog</a>
+          <a className="nav-link" style={{ fontSize: 11 }} href={RELEASES} target="_blank" rel="noopener">Releases</a>
+          <a className="nav-link" style={{ fontSize: 11 }} href={TEXTTOSVG} target="_blank" rel="noopener">Text → SVG</a>
           <a className="nav-link" style={{ fontSize: 11 }} href={REPO} target="_blank" rel="noopener">GitHub</a>
-          <a className="nav-link" style={{ fontSize: 11 }} href={SITE} target="_blank" rel="noopener">Contact</a>
+          <a className="nav-link" style={{ fontSize: 11 }} href={ISSUES} target="_blank" rel="noopener">Contact</a>
         </div>
       </div>
     </footer>

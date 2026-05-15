@@ -33,14 +33,13 @@ export function SectionHeader({ num, eyebrow, title, body }: { num: string; eyeb
 export function WhatItIs() {
   const ref = useReveal();
   const cells = [
-    { k: 'INPUT', v: 'SVG · DXF · TTF · CSV', label: 'Vector geometry from any source' },
+    { k: 'INPUT', v: 'SVG · TTF/OTF', label: 'Vector geometry and glyph outlines' },
     { k: 'OUTPUT', v: 'SendInput · WM_POINTER', label: 'Native Win32 cursor / pen events' },
-    { k: 'PRECISION', v: '0.1 px @ 1000 Hz', label: 'Sub-pixel interpolation' },
-    { k: 'LATENCY', v: '< 2 ms', label: 'From queue to dispatch' },
+    { k: 'PLATFORM', v: 'Windows 10/11', label: 'x64 and Arm64 · Microsoft Store' },
   ];
   return (
     <section id="what" className="container" style={{ paddingTop: 80, paddingBottom: 80 }}>
-      <SectionHeader num="01 / WHAT IT IS" eyebrow="Definition" title="A virtual pen plotter that lives inside Windows." body="SyntheticPen reads vector geometry — SVG paths, glyph outlines, hand-drawn signatures — and replays it as synthetic mouse and pen input. The system cursor becomes a plotter head, tracing your geometry with sub-pixel precision into any application that accepts input." />
+      <SectionHeader num="01 / WHAT IT IS" eyebrow="Definition" title="A virtual pen plotter that lives inside Windows." body="SyntheticPen reads vector geometry — SVG paths, glyph outlines, hand-drawn signatures — and replays it as synthetic mouse and pen input. The system cursor becomes a plotter head, tracing your geometry into any application that accepts input." />
       <div ref={ref} className="reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 1, background: 'var(--border)', border: '1px solid var(--border)' }}>
         {cells.map((s, i) => (
           <div key={i} style={{ padding: '28px 24px', background: 'var(--bg-1)' }}>
@@ -161,8 +160,8 @@ export function HowItWorks() {
   const ref = useReveal();
   const steps = [
     { n: '01', title: 'SVG Path Parsing', body: 'Raw vector geometry is parsed into a normalized command stream — M, L, C, Q, A — and resampled into a continuous arc-length curve.', ill: <IllParsing />, mono: 'commands = parsePath(svg)' },
-    { n: '02', title: 'Motion Planning', body: 'Bezier handles are evaluated at 1 kHz. A look-ahead planner shapes velocity, acceleration, and jerk to match a natural pen feed.', ill: <IllPlanning />, mono: 'plan = jerkLimited(curve)' },
-    { n: '03', title: 'Synthetic Input', body: 'Sub-pixel coordinates are dispatched as native Win32 input — SendInput, WM_POINTER, or the Stylus stack. The OS sees a real pen.', ill: <IllSyntheticInput />, mono: 'SendInput(plan.next)' },
+    { n: '02', title: 'Motion Planning', body: 'The resampled curve is paced by a curvature-aware velocity model, slowing through tight turns to match a natural pen feed.', ill: <IllPlanning />, mono: 'plan = pace(curve)' },
+    { n: '03', title: 'Synthetic Input', body: 'Coordinates are dispatched as native Win32 input — synthetic pen injection with a SendInput fallback. The OS sees a real pen.', ill: <IllSyntheticInput />, mono: 'SendInput(plan.next)' },
   ];
   return (
     <section id="how" className="container" style={{ paddingTop: 80, paddingBottom: 80 }}>

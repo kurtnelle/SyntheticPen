@@ -56,9 +56,7 @@ function Hero() {
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, marginTop: 48, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ink-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           <span>Native Win32 input</span>
           <span style={{ opacity: 0.3 }}>/</span>
-          <span>~0.1 px precision</span>
-          <span style={{ opacity: 0.3 }}>/</span>
-          <span>SVG · DXF · TTF</span>
+          <span>SVG · TTF/OTF</span>
         </div>
       </div>
     </section>
