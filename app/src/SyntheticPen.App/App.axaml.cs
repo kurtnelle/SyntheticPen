@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using SyntheticPen.App.ViewModels;
 
@@ -14,21 +15,21 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // No persistent main window. Calibration is the first user-facing surface;
+            // RegionPreview + RegionControls appear once a region is committed.
+            // The VM calls desktop.Shutdown() on close-button or initial-Esc.
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
+
             var vm = Program.Services.GetRequiredService<MainWindowViewModel>();
-            var banner = new Views.TopBanner();
-            var cta = new Views.CalibrateCallToAction();
 
-            void SyncCta() => cta.IsVisible = vm.CtaVisible;
-            vm.PropertyChanged += (_, e) =>
+            // Kick off the initial calibrate after the framework has finished initializing.
+            Dispatcher.UIThread.Post(async () =>
             {
-                if (e.PropertyName == nameof(vm.CtaVisible) || e.PropertyName == nameof(vm.HasRegion))
-                    Avalonia.Threading.Dispatcher.UIThread.Post(SyncCta);
-            };
-
-            desktop.MainWindow = banner;
-            banner.Show();
-            cta.Show();
-            SyncCta();
+                // Brief pause so the bundled demo SVG has a chance to parse/render before
+                // the calibration overlay grabs the screen.
+                await System.Threading.Tasks.Task.Delay(150);
+                await vm.RunInitialFlowAsync();
+            });
         }
         base.OnFrameworkInitializationCompleted();
     }
