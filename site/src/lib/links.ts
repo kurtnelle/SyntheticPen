@@ -9,7 +9,10 @@ export const REPO = 'https://github.com/kurtnelle/SyntheticPen';
 export const RELEASES = 'https://github.com/kurtnelle/SyntheticPen/releases';
 export const SITE = 'https://syntheticpen.com/';
 export const ISSUES = 'https://github.com/kurtnelle/SyntheticPen/issues';
-export const DOCS = 'docs/getting-started';
+// Root-relative + trailing slash so internal links hit the canonical
+// URL directly (matches the sitemap; avoids Google discovering a
+// non-trailing-slash duplicate it reports as an "alternative page").
+export const DOCS = '/docs/getting-started/';
 
 // Third-party text→SVG generator we point users to for creating
 // drawable geometry from typed text.

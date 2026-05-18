@@ -207,7 +207,7 @@ export function CTA() {
         <div ref={ref} className="reveal panel" style={{ padding: '64px 56px', textAlign: 'center', position: 'relative', overflow: 'hidden', borderColor: 'rgba(77, 163, 255, 0.2)' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 80% at 50% 100%, rgba(77,163,255,0.12), transparent 60%)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative' }}>
-            <span className="tag" style={{ marginBottom: 28 }}><span className="dot" />Windows 10/11 (x64)</span>
+            <span className="tag" style={{ marginBottom: 28 }}><span className="dot" />Windows 10/11 · x64 + Arm64</span>
             <h2 className="heading" style={{ fontSize: 'clamp(36px, 5vw, 64px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.02em', margin: '24px auto 0', maxWidth: 760, textTransform: 'uppercase' }}>
               Bring your geometry into motion.
             </h2>
