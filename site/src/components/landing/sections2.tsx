@@ -218,6 +218,12 @@ export function CTA() {
               </a>
               <a className="btn-ghost" href={DOCS}>Read the docs</a>
             </div>
+            <div style={{ marginTop: 16, fontSize: 13, color: 'var(--ink-dim)' }}>
+              Can't use the Store?{' '}
+              <a href={RELEASES} target="_blank" rel="noopener" style={{ color: 'var(--silver)', borderBottom: '1px solid rgba(166,166,166,0.4)' }}>
+                Download the MSI installer
+              </a>
+            </div>
             <div className="mono" style={{ fontSize: 11, letterSpacing: '0.15em', color: 'var(--ink-dim)', marginTop: 28, textTransform: 'uppercase' }}>
               MICROSOFT STORE · WINDOWS 10/11 · x64 + ARM64
             </div>
