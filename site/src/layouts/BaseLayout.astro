@@ -43,5 +43,8 @@ const ogImage = new URL(image, site).href;
   <body>
     <div class="bg-grid" aria-hidden="true"></div>
     <slot />
+    <!-- Cloudflare Web Analytics (cookieless, no personal data) -->
+    <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "ef69fd4d7f5a4df2bb0106e7ff6a351d"}'></script>
+    <!-- End Cloudflare Web Analytics -->
   </body>
 </html>
